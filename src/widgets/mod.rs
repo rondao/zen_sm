@@ -1,1 +1,3 @@
-pub mod palette;
+mod palette;
+
+pub use palette::Palette;

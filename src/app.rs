@@ -1,29 +1,25 @@
-use std::{
-    borrow::{Borrow, BorrowMut},
-    fs,
-};
+use std::fs;
 
 use eframe::{
     egui::{self, Vec2},
     epi,
 };
-use zen::graphics::Palette;
+use zen::graphics;
 
-use crate::widgets::palette::Widget;
+use crate::widgets;
 
 #[derive(Default)]
 struct Rom {
-    palette: Palette,
+    palette: graphics::Palette,
 }
-
-static mut ROM: Option<Rom> = None;
 
 #[derive(Default)]
-pub struct ZenSM<'a> {
-    palette: Option<Widget<'a, Palette>>,
+pub struct ZenSM {
+    rom: Option<Rom>,
+    palette: Option<widgets::Palette>,
 }
 
-impl epi::App for ZenSM<'_> {
+impl epi::App for ZenSM {
     fn name(&self) -> &str {
         "Zen SM"
     }
@@ -34,29 +30,32 @@ impl epi::App for ZenSM<'_> {
         )
         .unwrap();
 
-        unsafe {
-            ROM = Some(Rom { palette });
-            if let Some(rom) = ROM.borrow() {
-                self.palette = Some(Widget {
-                    palette: &rom.palette,
-                    texture_id: None,
-                });
-            };
-        };
+        self.rom = Some(Rom { palette });
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        if let Some(palette) = self.palette.borrow_mut() {
-            egui::Area::new(1).show(ctx, |ui| {
-                palette.ui(
-                    ui,
-                    frame,
-                    Vec2 {
-                        x: 600_f32,
-                        y: 600_f32,
-                    },
-                );
-            });
+        if let Some(rom) = &mut self.rom {
+            if self.palette.is_none() {
+                let mut widget_palette = widgets::Palette::default();
+                widget_palette.load_texture(frame, &rom.palette);
+                self.palette = Some(widget_palette);
+            }
+
+            if let Some(palette) = &mut self.palette {
+                egui::Area::new(1).show(ctx, |ui| {
+                    let response = palette.ui(
+                        ui,
+                        &mut rom.palette,
+                        Vec2 {
+                            x: 600_f32,
+                            y: 600_f32,
+                        },
+                    );
+                    if response.changed() {
+                        palette.load_texture(frame, &rom.palette);
+                    }
+                });
+            }
         } else {
             egui::CentralPanel::default().show(ctx, |ui| ui.label("Load a ROM."));
         }
