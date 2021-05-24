@@ -1,4 +1,7 @@
-use std::fs;
+use std::{
+    borrow::{Borrow, BorrowMut},
+    fs,
+};
 
 use eframe::{
     egui::{self, Vec2},
@@ -6,47 +9,56 @@ use eframe::{
 };
 use zen::graphics::Palette;
 
-use crate::widgets::{Widget, WithTexture};
+use crate::widgets::palette::Widget;
 
-pub struct ZenSM {
-    palette: WithTexture<Palette>,
+#[derive(Default)]
+struct Rom {
+    palette: Palette,
 }
 
-impl Default for ZenSM {
-    fn default() -> Self {
+static mut ROM: Option<Rom> = None;
+
+#[derive(Default)]
+pub struct ZenSM<'a> {
+    palette: Option<Widget<'a, Palette>>,
+}
+
+impl epi::App for ZenSM<'_> {
+    fn name(&self) -> &str {
+        "Zen SM"
+    }
+
+    fn setup(&mut self, _ctx: &egui::CtxRef) {
         let palette = zen::graphics::palette::from_bytes(
             &fs::read("/home/rondao/dev/rust/snes_data/Crateria.tpl").unwrap(),
         )
         .unwrap();
 
-        Self {
-            palette: WithTexture {
-                data: palette,
-                texture_id: None,
-            },
-        }
-    }
-}
-
-impl epi::App for ZenSM {
-    fn name(&self) -> &str {
-        "Zen SM"
+        unsafe {
+            ROM = Some(Rom { palette });
+            if let Some(rom) = ROM.borrow() {
+                self.palette = Some(Widget {
+                    palette: &rom.palette,
+                    texture_id: None,
+                });
+            };
+        };
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
-        if self.palette.texture_id.is_none() {
-            self.palette.load_texture(frame);
+        if let Some(palette) = self.palette.borrow_mut() {
+            egui::Area::new(1).show(ctx, |ui| {
+                palette.ui(
+                    ui,
+                    frame,
+                    Vec2 {
+                        x: 600_f32,
+                        y: 600_f32,
+                    },
+                );
+            });
+        } else {
+            egui::CentralPanel::default().show(ctx, |ui| ui.label("Load a ROM."));
         }
-
-        egui::Area::new(1).show(ctx, |ui| {
-            let response = self.palette.ui(
-                ui,
-                frame,
-                Vec2 {
-                    x: 600_f32,
-                    y: 600_f32,
-                },
-            );
-        });
     }
 }

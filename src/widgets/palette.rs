@@ -1,18 +1,22 @@
 use eframe::{
-    egui::{self, emath, Color32, Image, Label, Pos2, Rect, Stroke, Vec2},
+    egui::{self, emath, Color32, Image, Pos2, Rect, Stroke, TextureId, Vec2},
     epi,
 };
 use zen::graphics::Palette;
 
-use super::{Widget, WithTexture};
+pub struct Widget<'a, Palette> {
+    pub palette: &'a Palette,
+    pub texture_id: Option<TextureId>,
+}
 
-impl WithTexture<Palette> {
+impl Widget<'_, Palette> {
     pub fn load_texture(&mut self, frame: &mut epi::Frame<'_>) {
         if let Some(texture_id) = self.texture_id {
             frame.tex_allocator().free(texture_id);
         }
 
         let pixels: Vec<Color32> = self
+            .palette
             .to_colors()
             .into_iter()
             .map(|color| Color32::from_rgb(color.r, color.g, color.b))
@@ -24,17 +28,15 @@ impl WithTexture<Palette> {
                 .alloc_srgba_premultiplied((16, 16), &pixels),
         );
     }
-}
 
-impl Widget for WithTexture<Palette> {
-    fn ui(
+    pub fn ui(
         &mut self,
         ui: &mut egui::Ui,
         frame: &mut epi::Frame<'_>,
         size: egui::Vec2,
     ) -> egui::Response {
         if self.texture_id.is_none() {
-            return ui.label("Please load a texture for the Palette.");
+            self.load_texture(frame);
         }
         let texture_id = self.texture_id.unwrap();
 
