@@ -92,6 +92,11 @@ impl Palette {
                         ];
                         println!("{:?}", self.selected_color);
 
+                        // Position the color picker popup at the click position.
+                        egui::Area::new(self.color_popup_id)
+                            .current_pos(to_screen * color_palette_pos)
+                            .show(ui.ctx(), |_ui| {});
+
                         if !ui.memory().is_popup_open(self.color_popup_id) {
                             ui.memory().toggle_popup(self.color_popup_id);
                         }
@@ -145,7 +150,6 @@ impl Palette {
     fn ui_color_picker(&mut self, ui: &mut egui::Ui, response: &mut egui::Response) {
         let area_response = egui::Area::new(self.color_popup_id)
             .order(egui::Order::Foreground)
-            .default_pos(response.rect.max)
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = 256.0;
                 containers::Frame::popup(ui.style()).show(ui, |ui| {
