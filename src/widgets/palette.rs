@@ -8,16 +8,16 @@ pub struct Palette {
     texture_id: Option<egui::TextureId>,
     color_popup_id: egui::Id,
     selected_color: [f32; 3],
-    selected_position: Option<egui::Pos2>,
+    selected_index: Option<egui::Pos2>,
 }
 
 impl Default for Palette {
     fn default() -> Self {
         Self {
             texture_id: None,
-            selected_color: [0.0; 3],
             color_popup_id: egui::Id::new("palette_color_popup_id"),
-            selected_position: None,
+            selected_color: [0.0; 3],
+            selected_index: None,
         }
     }
 }
@@ -65,31 +65,53 @@ impl Palette {
                 ),
                 widget_rect,
             );
-            let from_screen = to_screen.inverse();
+            let to_color_palette = to_screen.inverse();
 
-            let mut selected_position = None;
-            if self.selected_position.is_none() {
-                // Select the hovering position.
-                if let Some(hover_pos) = response.hover_pos() {
-                    let color_pos = (from_screen * hover_pos).floor();
-                    // Handle only positions inside the Widget. Use epsilon to avoid on bounds.
-                    selected_position = if widget_rect
-                        .contains(to_screen * color_pos + egui::Vec2 { x: 0.1, y: 0.1 })
-                    {
-                        Some(color_pos)
-                    } else {
-                        None
-                    }
-                };
+            // Check the hover or click selection.
+            let current_selection = if response.hover_pos().is_some() {
+                let screen_pos = response.hover_pos().unwrap();
+                let color_palette_pos = (to_color_palette * screen_pos).floor();
+
+                // Handle only positions inside the Widget. Use epsilon to avoid on bounds.
+                if widget_rect
+                    .contains(to_screen * color_palette_pos + egui::Vec2 { x: 0.1, y: 0.1 })
+                {
+                    // Open a color picker and select the color.
+                    if response.secondary_clicked() {
+                        self.selected_index = Some(color_palette_pos);
+
+                        let palette_color: graphics::Rgb888 = palette.sub_palettes
+                            [color_palette_pos.y as usize]
+                            .colors[color_palette_pos.x as usize]
+                            .into();
+
+                        self.selected_color = [
+                            palette_color.r as f32 / 255.0,
+                            palette_color.g as f32 / 255.0,
+                            palette_color.b as f32 / 255.0,
+                        ];
+                        println!("{:?}", self.selected_color);
+
+                        if !ui.memory().is_popup_open(self.color_popup_id) {
+                            ui.memory().toggle_popup(self.color_popup_id);
+                        }
+                    };
+                    // If we don't have a current selection, use the hover selection.
+                    self.selected_index.or(Some(color_palette_pos))
+                } else {
+                    // Otherwise, use the current selection.
+                    self.selected_index
+                }
             } else {
-                selected_position = self.selected_position;
-            }
+                // If we are outsize the widget area, use the current selection.
+                self.selected_index
+            };
 
-            if let Some(selected_position) = selected_position {
-                // Draw a rectangle around the selected color.
+            // Draw a rectangle around the selected color.
+            if let Some(current_selection) = current_selection {
                 let rect = egui::Rect {
-                    min: to_screen * selected_position,
-                    max: to_screen * selected_position
+                    min: to_screen * current_selection,
+                    max: to_screen * current_selection
                         + egui::Vec2 {
                             x: (size.x / 16.0),
                             y: (size.y / 16.0),
@@ -98,36 +120,15 @@ impl Palette {
 
                 let painter = ui.painter_at(widget_rect);
                 painter.rect_stroke(rect, 1.0, egui::Stroke::new(2.0, egui::Color32::WHITE));
-
-                // Open a color picker.
-                if response.secondary_clicked() {
-                    self.selected_position = Some(selected_position);
-
-                    let palette_color: graphics::Rgb888 = palette.sub_palettes
-                        [selected_position.y as usize]
-                        .colors[selected_position.x as usize]
-                        .into();
-
-                    self.selected_color = [
-                        palette_color.r as f32 / 255.0,
-                        palette_color.g as f32 / 255.0,
-                        palette_color.b as f32 / 255.0,
-                    ];
-                    println!("{:?}", self.selected_color);
-
-                    if !ui.memory().is_popup_open(self.color_popup_id) {
-                        ui.memory().toggle_popup(self.color_popup_id);
-                    }
-                }
-            }
+            };
 
             // Color picker is open.
             if ui.memory().is_popup_open(self.color_popup_id) {
                 self.ui_color_picker(ui, &mut response);
                 if response.changed() {
-                    if let Some(selected_position) = self.selected_position {
-                        palette.sub_palettes[selected_position.y as usize].colors
-                            [selected_position.x as usize] = graphics::Rgb888 {
+                    if let Some(selected_index) = self.selected_index {
+                        palette.sub_palettes[selected_index.y as usize].colors
+                            [selected_index.x as usize] = graphics::Rgb888 {
                             r: (self.selected_color[0] * 255.0) as u8,
                             g: (self.selected_color[1] * 255.0) as u8,
                             b: (self.selected_color[2] * 255.0) as u8,
@@ -135,7 +136,7 @@ impl Palette {
                         .into();
                     }
                 }
-            }
+            };
         }
 
         response
@@ -164,7 +165,7 @@ impl Palette {
             && (ui.input().key_pressed(egui::Key::Escape) || area_response.clicked_elsewhere())
         {
             ui.memory().close_popup();
-            self.selected_position = None;
+            self.selected_index = None;
         }
     }
 }
