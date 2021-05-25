@@ -7,7 +7,7 @@ use zen::graphics;
 pub struct Palette {
     texture_id: Option<egui::TextureId>,
     color_popup_id: egui::Id,
-    selected_color: [f32; 3],
+    selected_color: color::Color32,
     selected_index: Option<egui::Pos2>,
 }
 
@@ -16,7 +16,7 @@ impl Default for Palette {
         Self {
             texture_id: None,
             color_popup_id: egui::Id::new("palette_color_popup_id"),
-            selected_color: [0.0; 3],
+            selected_color: color::Color32::default(),
             selected_index: None,
         }
     }
@@ -85,16 +85,18 @@ impl Palette {
                             .colors[color_palette_pos.x as usize]
                             .into();
 
-                        self.selected_color = [
-                            palette_color.r as f32 / 255.0,
-                            palette_color.g as f32 / 255.0,
-                            palette_color.b as f32 / 255.0,
-                        ];
-                        println!("{:?}", self.selected_color);
+                        self.selected_color = color::Color32::from_rgb(
+                            palette_color.r,
+                            palette_color.g,
+                            palette_color.b,
+                        );
 
                         // Position the color picker popup at the click position.
                         egui::Area::new(self.color_popup_id)
-                            .current_pos(to_screen * color_palette_pos)
+                            .current_pos(
+                                to_screen * color_palette_pos
+                                    + egui::vec2(size.x / 16.0, size.y / 16.0),
+                            )
                             .show(ui.ctx(), |_ui| {});
 
                         if !ui.memory().is_popup_open(self.color_popup_id) {
@@ -116,11 +118,7 @@ impl Palette {
             if let Some(current_selection) = current_selection {
                 let rect = egui::Rect {
                     min: to_screen * current_selection,
-                    max: to_screen * current_selection
-                        + egui::Vec2 {
-                            x: (size.x / 16.0),
-                            y: (size.y / 16.0),
-                        },
+                    max: to_screen * current_selection + egui::vec2(size.x / 16.0, size.y / 16.0),
                 };
 
                 let painter = ui.painter_at(widget_rect);
@@ -134,9 +132,9 @@ impl Palette {
                     if let Some(selected_index) = self.selected_index {
                         palette.sub_palettes[selected_index.y as usize].colors
                             [selected_index.x as usize] = graphics::Rgb888 {
-                            r: (self.selected_color[0] * 255.0) as u8,
-                            g: (self.selected_color[1] * 255.0) as u8,
-                            b: (self.selected_color[2] * 255.0) as u8,
+                            r: self.selected_color.r(),
+                            g: self.selected_color.g(),
+                            b: self.selected_color.b(),
                         }
                         .into();
                     }
@@ -153,13 +151,13 @@ impl Palette {
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = 256.0;
                 containers::Frame::popup(ui.style()).show(ui, |ui| {
-                    let mut hsva = color::Hsva::from_rgb(self.selected_color);
+                    let mut hsva = self.selected_color.into();
                     if color_picker::color_picker_hsva_2d(
                         ui,
                         &mut hsva,
                         color_picker::Alpha::Opaque,
                     ) {
-                        self.selected_color = hsva.to_rgb();
+                        self.selected_color = hsva.into();
                         response.mark_changed();
                     }
                 });
