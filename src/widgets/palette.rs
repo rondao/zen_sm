@@ -2,7 +2,10 @@ use eframe::{
     egui::{self, color, color_picker, containers, emath},
     epi::{self, Image},
 };
-use zen::graphics;
+use zen::graphics::{
+    self,
+    palette::{COLORS_BY_SUB_PALETTE, NUMBER_OF_SUB_PALETTES},
+};
 
 pub struct Palette {
     texture_id: Option<egui::TextureId>,
@@ -39,7 +42,7 @@ impl Palette {
             .collect();
 
         self.texture_id = Some(frame.alloc_texture(Image {
-            size: [16, 16],
+            size: [COLORS_BY_SUB_PALETTE, NUMBER_OF_SUB_PALETTES],
             pixels,
         }));
     }
@@ -64,7 +67,7 @@ impl Palette {
             let to_screen = emath::RectTransform::from_to(
                 egui::Rect::from_min_size(
                     egui::Pos2 { x: 0.0, y: 0.0 },
-                    egui::Vec2 { x: 16.0, y: 16.0 },
+                    egui::Vec2 { x: 16.0, y: 8.0 },
                 ),
                 widget_rect,
             );
@@ -98,7 +101,7 @@ impl Palette {
                         egui::Area::new(self.color_popup_id)
                             .current_pos(
                                 to_screen * color_palette_pos
-                                    + egui::vec2(size.x / 16.0, size.y / 16.0),
+                                    + egui::vec2(size.x / 16.0, size.y / 8.0),
                             )
                             .show(ui.ctx(), |_ui| {});
 
@@ -121,7 +124,7 @@ impl Palette {
             if let Some(current_selection) = current_selection {
                 let rect = egui::Rect {
                     min: to_screen * current_selection,
-                    max: to_screen * current_selection + egui::vec2(size.x / 16.0, size.y / 16.0),
+                    max: to_screen * current_selection + egui::vec2(size.x / 16.0, size.y / 8.0),
                 };
 
                 let painter = ui.painter_at(widget_rect);

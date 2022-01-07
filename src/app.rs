@@ -35,27 +35,23 @@ impl epi::App for ZenSM {
                 .load_texture(frame, &self.sm.palettes[&0xC2AE5D]);
         }
 
-        egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
-            ui.label("Hello World!");
-        });
-
-        if self.palette.is_texture_loaded() {
-            egui::Area::new(1).show(ctx, |ui| {
-                let response = self.palette.ui(
-                    ui,
-                    self.sm.palettes.get_mut(&0xC2AE5D).unwrap(),
-                    Vec2 {
-                        x: 600_f32,
-                        y: 600_f32,
-                    },
-                );
-                if response.changed() {
-                    self.palette
-                        .load_texture(frame, &self.sm.palettes[&0xC2AE5D]);
-                }
+        egui::TopBottomPanel::bottom("bottom_panel")
+            .resizable(true)
+            .default_height(300.0)
+            .show(ctx, |ui| {
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    if self.palette.is_texture_loaded() {
+                        let response = self.palette.ui(
+                            ui,
+                            self.sm.palettes.get_mut(&0xC2AE5D).unwrap(),
+                            Vec2 { x: 300.0, y: 150.0 },
+                        );
+                        if response.changed() {
+                            self.palette
+                                .load_texture(frame, &self.sm.palettes[&0xC2AE5D]);
+                        }
+                    }
+                });
             });
-        } else {
-            egui::CentralPanel::default().show(ctx, |ui| ui.label("Load a ROM."));
-        }
     }
 }
