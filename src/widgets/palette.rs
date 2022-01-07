@@ -23,6 +23,10 @@ impl Default for Palette {
 }
 
 impl Palette {
+    pub fn is_texture_loaded(&self) -> bool {
+        self.texture_id.is_some()
+    }
+
     pub fn load_texture(&mut self, frame: &mut epi::Frame<'_>, palette: &graphics::Palette) {
         if let Some(texture_id) = self.texture_id {
             frame.tex_allocator().free(texture_id);
