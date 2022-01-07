@@ -17,18 +17,27 @@ impl epi::App for ZenSM {
         "Zen SM"
     }
 
-    fn setup(&mut self, _ctx: &egui::CtxRef) {
+    fn setup(
+        &mut self,
+        _ctx: &egui::CtxRef,
+        _frame: &epi::Frame,
+        _storage: Option<&dyn epi::Storage>,
+    ) {
         self.sm = super_metroid::load_unheadered_rom(
             "/home/rondao/dev/snes_data/Super Metroid (JU) [!].smc",
         )
         .unwrap();
     }
 
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &mut epi::Frame<'_>) {
+    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
         if !self.palette.is_texture_loaded() {
             self.palette
                 .load_texture(frame, &self.sm.palettes[&0xC2AE5D]);
         }
+
+        egui::TopBottomPanel::top("my_panel").show(ctx, |ui| {
+            ui.label("Hello World!");
+        });
 
         if self.palette.is_texture_loaded() {
             egui::Area::new(1).show(ctx, |ui| {

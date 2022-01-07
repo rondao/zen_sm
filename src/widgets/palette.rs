@@ -1,6 +1,6 @@
 use eframe::{
     egui::{self, color, color_picker, containers, emath},
-    epi,
+    epi::{self, Image},
 };
 use zen::graphics;
 
@@ -27,9 +27,9 @@ impl Palette {
         self.texture_id.is_some()
     }
 
-    pub fn load_texture(&mut self, frame: &mut epi::Frame<'_>, palette: &graphics::Palette) {
+    pub fn load_texture(&mut self, frame: &epi::Frame, palette: &graphics::Palette) {
         if let Some(texture_id) = self.texture_id {
-            frame.tex_allocator().free(texture_id);
+            frame.free_texture(texture_id);
         }
 
         let pixels: Vec<egui::Color32> = palette
@@ -38,11 +38,10 @@ impl Palette {
             .map(|color| egui::Color32::from_rgb(color.r, color.g, color.b))
             .collect();
 
-        self.texture_id = Some(
-            frame
-                .tex_allocator()
-                .alloc_srgba_premultiplied((16, 16), &pixels),
-        );
+        self.texture_id = Some(frame.alloc_texture(Image {
+            size: [16, 16],
+            pixels,
+        }));
     }
 
     pub fn ui(
@@ -168,7 +167,8 @@ impl Palette {
             });
 
         if !response.secondary_clicked()
-            && (ui.input().key_pressed(egui::Key::Escape) || area_response.clicked_elsewhere())
+            && (ui.input().key_pressed(egui::Key::Escape)
+                || area_response.response.clicked_elsewhere())
         {
             ui.memory().close_popup();
             self.selected_index = None;
