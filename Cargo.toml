@@ -11,6 +11,12 @@ crate-type = ["cdylib", "rlib"]
 eframe = "0.16.0" # Gives us egui, epi and web+native backends
 zen = { version = "0.1.0", path = "../zen" }
 serde = { version = "1", features = ["derive"], optional = true }
+rfd = "0.6.4"
+wasm-bindgen-futures = "0.4.29"
+futures = "0.3.19"
+console_error_panic_hook = "0.1.7"
+web-sys = "0.3.56"
+lazy_static = "1.4.0"
 
 [features]
 default = []
