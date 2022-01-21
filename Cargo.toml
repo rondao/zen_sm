@@ -15,8 +15,10 @@ rfd = "0.6.4"
 wasm-bindgen-futures = "0.4.29"
 futures = "0.3.19"
 console_error_panic_hook = "0.1.7"
-web-sys = "0.3.56"
+web-sys = { version = "0.3.56", features = ["Blob", "BlobPropertyBag", "Document", "Element", "HtmlElement", "HtmlAnchorElement", "Window", "Url"] }
 lazy_static = "1.4.0"
+js-sys = "0.3.56"
+wasm-bindgen = "0.2.79"
 
 [features]
 default = []
