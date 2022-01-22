@@ -7,25 +7,25 @@ use zen::graphics::{
     palette::{COLORS_BY_SUB_PALETTE, NUMBER_OF_SUB_PALETTES},
 };
 
-pub struct Palette {
-    texture_id: Option<egui::TextureId>,
-    color_popup_id: egui::Id,
-    selected_color: color::Color32,
-    selected_index: Option<egui::Pos2>,
+pub struct PaletteEditor {
+    texture_id: Option<egui::TextureId>, // ID for the palette texture.
+    color_edit_popup_id: egui::Id,       // ID for the Color Picker Popup.
+    editing_color: color::Color32,       // Store the color being edited by the Color Picker Popup.
+    selected_color_pos: Option<egui::Pos2>, // Position to draw the square selection.
 }
 
-impl Default for Palette {
+impl Default for PaletteEditor {
     fn default() -> Self {
         Self {
             texture_id: None,
-            color_popup_id: egui::Id::new("palette_color_popup_id"),
-            selected_color: color::Color32::default(),
-            selected_index: None,
+            color_edit_popup_id: egui::Id::new("palette_color_popup_id"),
+            editing_color: color::Color32::default(),
+            selected_color_pos: None,
         }
     }
 }
 
-impl Palette {
+impl PaletteEditor {
     pub fn is_texture_loaded(&self) -> bool {
         self.texture_id.is_some()
     }
@@ -53,8 +53,6 @@ impl Palette {
         palette: &mut graphics::Palette,
         size: egui::Vec2,
     ) -> egui::Response {
-        // Attach some meta-data to the response which can be used by screen readers:
-        // response.widget_info(|| egui::WidgetInfo::selected(egui::WidgetType::Checkbox, *on, ""));
         let (widget_rect, mut response) = ui.allocate_exact_size(size, egui::Sense::hover());
 
         if let Some(texture_id) = self.texture_id {
@@ -64,67 +62,61 @@ impl Palette {
                 .interact(egui::Sense::click());
 
             // Pointer's screen to palette's color transformations.
-            let to_screen = emath::RectTransform::from_to(
+            let transform_to_screen = emath::RectTransform::from_to(
                 egui::Rect::from_min_size(
                     egui::Pos2 { x: 0.0, y: 0.0 },
                     egui::Vec2 { x: 16.0, y: 8.0 },
                 ),
                 widget_rect,
             );
-            let to_color_palette = to_screen.inverse();
+            let transform_to_color_palette = transform_to_screen.inverse();
 
-            // Check the hover or click selection.
-            let current_selection = if response.hover_pos().is_some() {
-                let screen_pos = response.hover_pos().unwrap();
-                let color_palette_pos = (to_color_palette * screen_pos).floor();
+            // Handle only positions inside the Widget.
+            let hover_position = response.hover_pos().and_then(|hover_pos| {
+                let color_palette_pos = (transform_to_color_palette * hover_pos).floor();
+                let color_screen_pos = transform_to_screen * color_palette_pos;
 
-                // Handle only positions inside the Widget. Use epsilon to avoid on bounds.
-                if widget_rect
-                    .contains(to_screen * color_palette_pos + egui::Vec2 { x: 0.1, y: 0.1 })
-                {
-                    // Open a color picker and select the color.
-                    if response.secondary_clicked() {
-                        self.selected_index = Some(color_palette_pos);
+                // Use epsilon to avoid out of bounds.
+                widget_rect
+                    .contains(color_screen_pos + egui::Vec2 { x: 0.1, y: 0.1 })
+                    .then(|| {
+                        // Open a color picker and select the color.
+                        if response.secondary_clicked() {
+                            self.selected_color_pos = Some(color_palette_pos);
 
-                        let palette_color: graphics::Rgb888 = palette.sub_palettes
-                            [color_palette_pos.y as usize]
-                            .colors[color_palette_pos.x as usize]
-                            .into();
+                            let palette_color: graphics::Rgb888 = palette.sub_palettes
+                                [color_palette_pos.y as usize]
+                                .colors[color_palette_pos.x as usize]
+                                .into();
 
-                        self.selected_color = color::Color32::from_rgb(
-                            palette_color.r,
-                            palette_color.g,
-                            palette_color.b,
-                        );
+                            self.editing_color = color::Color32::from_rgb(
+                                palette_color.r,
+                                palette_color.g,
+                                palette_color.b,
+                            );
 
-                        // Position the color picker popup at the click position.
-                        egui::Area::new(self.color_popup_id)
-                            .current_pos(
-                                to_screen * color_palette_pos
-                                    + egui::vec2(size.x / 16.0, size.y / 8.0),
-                            )
-                            .show(ui.ctx(), |_ui| {});
+                            // Position the color picker popup at the click position.
+                            egui::Area::new(self.color_edit_popup_id)
+                                .current_pos(
+                                    color_screen_pos + egui::vec2(size.x / 16.0, size.y / 8.0),
+                                )
+                                .show(ui.ctx(), |_ui| {});
 
-                        if !ui.memory().is_popup_open(self.color_popup_id) {
-                            ui.memory().toggle_popup(self.color_popup_id);
-                        }
-                    };
-                    // If we don't have a current selection, use the hover selection.
-                    self.selected_index.or(Some(color_palette_pos))
-                } else {
-                    // Otherwise, use the current selection.
-                    self.selected_index
-                }
-            } else {
-                // If we are outsize the widget area, use the current selection.
-                self.selected_index
-            };
+                            if !ui.memory().is_popup_open(self.color_edit_popup_id) {
+                                ui.memory().toggle_popup(self.color_edit_popup_id);
+                            }
+                        };
+                        color_palette_pos
+                    })
+            });
 
             // Draw a rectangle around the selected color.
+            let current_selection = self.selected_color_pos.or(hover_position);
             if let Some(current_selection) = current_selection {
                 let rect = egui::Rect {
-                    min: to_screen * current_selection,
-                    max: to_screen * current_selection + egui::vec2(size.x / 16.0, size.y / 8.0),
+                    min: transform_to_screen * current_selection,
+                    max: transform_to_screen * current_selection
+                        + egui::vec2(size.x / 16.0, size.y / 8.0),
                 };
 
                 let painter = ui.painter_at(widget_rect);
@@ -132,15 +124,15 @@ impl Palette {
             };
 
             // Color picker is open.
-            if ui.memory().is_popup_open(self.color_popup_id) {
+            if ui.memory().is_popup_open(self.color_edit_popup_id) {
                 self.ui_color_picker(ui, &mut response);
                 if response.changed() {
-                    if let Some(selected_index) = self.selected_index {
+                    if let Some(selected_index) = self.selected_color_pos {
                         palette.sub_palettes[selected_index.y as usize].colors
                             [selected_index.x as usize] = graphics::Rgb888 {
-                            r: self.selected_color.r(),
-                            g: self.selected_color.g(),
-                            b: self.selected_color.b(),
+                            r: self.editing_color.r(),
+                            g: self.editing_color.g(),
+                            b: self.editing_color.b(),
                         }
                         .into();
                     }
@@ -152,18 +144,18 @@ impl Palette {
     }
 
     fn ui_color_picker(&mut self, ui: &mut egui::Ui, response: &mut egui::Response) {
-        let area_response = egui::Area::new(self.color_popup_id)
+        let area_response = egui::Area::new(self.color_edit_popup_id)
             .order(egui::Order::Foreground)
             .show(ui.ctx(), |ui| {
                 ui.spacing_mut().slider_width = 256.0;
                 containers::Frame::popup(ui.style()).show(ui, |ui| {
-                    let mut hsva = self.selected_color.into();
+                    let mut hsva = self.editing_color.into();
                     if color_picker::color_picker_hsva_2d(
                         ui,
                         &mut hsva,
                         color_picker::Alpha::Opaque,
                     ) {
-                        self.selected_color = hsva.into();
+                        self.editing_color = hsva.into();
                         response.mark_changed();
                     }
                 });
@@ -174,7 +166,7 @@ impl Palette {
                 || area_response.response.clicked_elsewhere())
         {
             ui.memory().close_popup();
-            self.selected_index = None;
+            self.selected_color_pos = None;
         }
     }
 }

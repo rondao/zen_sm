@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use futures::Future;
 
@@ -17,7 +17,7 @@ lazy_static::lazy_static! {
 #[derive(Default)]
 pub struct ZenSM {
     sm: SuperMetroid,
-    palette: widgets::Palette,
+    palette: widgets::PaletteEditor,
 }
 
 impl epi::App for ZenSM {
@@ -26,48 +26,26 @@ impl epi::App for ZenSM {
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
-        if let Ok(mut selected_file) = SELECTED_FILE_DATA.lock() {
-            if let Some(data) = &*selected_file {
-                if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
-                    self.sm = sm;
-                }
-                *selected_file = None;
-            }
+        if let Ok(selected_file) = SELECTED_FILE_DATA.lock() {
+            self.load_rom_from_file(selected_file);
         }
 
         egui::TopBottomPanel::top("top_menu").show(ctx, |ui| {
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Load ROM from file").clicked() {
-                        super::app::execute_async(async move {
-                            if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
-                                let file_data = file.read().await;
-                                *SELECTED_FILE_DATA.lock().unwrap() = Some(file_data);
-                            }
-                        });
-                        ui.close_menu();
-                    };
-                    if ui.button("Save ROM to file").clicked() {
-                        self.sm.save_to_rom();
-                        super::app::save_file(&self.sm.rom);
-                        ui.close_menu();
-                    };
-                });
-            });
+            self.draw_menu(ui);
         });
-
-        if !self.palette.is_texture_loaded() {
-            if let Some(palette) = self.sm.palettes.get(&0xC2AD7C) {
-                self.palette.load_texture(frame, palette);
-            }
-        }
 
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(true)
             .default_height(300.0)
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    if self.palette.is_texture_loaded() {
+                    if self.sm.palettes.contains_key(&0xC2AD7C) {
+                        if !self.palette.is_texture_loaded() {
+                            if let Some(palette) = self.sm.palettes.get(&0xC2AD7C) {
+                                self.palette.load_texture(frame, palette);
+                            }
+                        }
+
                         let response = self.palette.ui(
                             ui,
                             self.sm.palettes.get_mut(&0xC2AD7C).unwrap(),
@@ -80,6 +58,38 @@ impl epi::App for ZenSM {
                     }
                 });
             });
+    }
+}
+
+impl ZenSM {
+    fn load_rom_from_file(&mut self, mut selected_file: MutexGuard<'_, Option<Vec<u8>>>) {
+        if let Some(data) = &*selected_file {
+            if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
+                self.sm = sm;
+            }
+            *selected_file = None;
+        }
+    }
+
+    fn draw_menu(&mut self, ui: &mut egui::Ui) {
+        egui::menu::bar(ui, |ui| {
+            ui.menu_button("File", |ui| {
+                if ui.button("Load ROM from file").clicked() {
+                    super::app::execute_async(async move {
+                        if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
+                            let file_data = file.read().await;
+                            *SELECTED_FILE_DATA.lock().unwrap() = Some(file_data);
+                        }
+                    });
+                    ui.close_menu();
+                };
+                if ui.button("Save ROM to file").clicked() {
+                    self.sm.save_to_rom();
+                    super::app::save_file(&self.sm.rom);
+                    ui.close_menu();
+                };
+            });
+        });
     }
 }
 
