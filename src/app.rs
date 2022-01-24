@@ -21,21 +21,30 @@ pub struct ZenSM {
     selected_palette: usize,
 }
 
+enum Menu {
+    LoadFromFile,
+    SaveToFile,
+    None,
+}
+
 impl epi::App for ZenSM {
     fn name(&self) -> &str {
         "Zen SM"
     }
 
     fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+        // Check if user selected a file.
         if let Ok(mut mutex_content) = SELECTED_FILE_DATA.lock() {
             if let Some(data) = &*mutex_content {
-                self.load_rom_from_file(data, frame);
+                self.load_data_rom(data, frame);
                 *mutex_content = None;
             }
         }
 
-        egui::TopBottomPanel::top("top_menu").show(ctx, |ui| {
-            self.draw_menu(ui);
+        egui::TopBottomPanel::top("top_menu").show(ctx, |ui| match self.draw_menu(ui) {
+            Menu::LoadFromFile => self.load_from_file(),
+            Menu::SaveToFile => self.save_to_file(),
+            Menu::None => (),
         });
 
         egui::TopBottomPanel::bottom("bottom_panel")
@@ -44,7 +53,10 @@ impl epi::App for ZenSM {
             .show(ctx, |ui| {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     if !self.sm.palettes.is_empty() {
-                        self.draw_combo_box_palette_selection(ui, frame);
+                        if let Some(selected_palette) = self.draw_combo_box_palette_selection(ui) {
+                            self.selected_palette = selected_palette;
+                            self.load_palette_texture(frame);
+                        }
 
                         let response = self.palette.ui(
                             ui,
@@ -52,8 +64,7 @@ impl epi::App for ZenSM {
                             Vec2 { x: 300.0, y: 150.0 },
                         );
                         if response.changed() {
-                            self.palette
-                                .load_texture(frame, &self.sm.palettes[&self.selected_palette]);
+                            self.load_palette_texture(frame);
                         }
                     }
                 });
@@ -62,54 +73,65 @@ impl epi::App for ZenSM {
 }
 
 impl ZenSM {
-    fn load_rom_from_file(&mut self, data: &Vec<u8>, frame: &epi::Frame) {
+    fn load_data_rom(&mut self, data: &Vec<u8>, frame: &epi::Frame) {
         if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
             self.sm = sm;
 
             self.selected_palette = *self.sm.palettes.keys().next().unwrap();
-            self.palette
-                .load_texture(frame, &self.sm.palettes[&self.selected_palette]);
+            self.load_palette_texture(frame)
         }
     }
 
-    fn draw_menu(&mut self, ui: &mut egui::Ui) {
+    fn draw_menu(&mut self, ui: &mut egui::Ui) -> Menu {
+        let mut selected_menu = Menu::None;
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
                 if ui.button("Load ROM from file").clicked() {
-                    super::app::execute_async(async move {
-                        if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
-                            let file_data = file.read().await;
-                            *SELECTED_FILE_DATA.lock().unwrap() = Some(file_data);
-                        }
-                    });
+                    selected_menu = Menu::LoadFromFile;
                     ui.close_menu();
                 };
                 if ui.button("Save ROM to file").clicked() {
-                    self.sm.save_to_rom();
-                    super::app::save_file(&self.sm.rom);
+                    selected_menu = Menu::SaveToFile;
                     ui.close_menu();
                 };
             });
         });
+        selected_menu
     }
 
-    fn draw_combo_box_palette_selection(&mut self, ui: &mut egui::Ui, frame: &epi::Frame) {
-        let previous_selection = self.selected_palette;
+    fn load_palette_texture(&mut self, frame: &epi::Frame) {
+        self.palette
+            .load_texture(frame, &self.sm.palettes[&self.selected_palette]);
+    }
+
+    fn load_from_file(&self) {
+        super::app::execute_async(async move {
+            if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
+                let file_data = file.read().await;
+                *SELECTED_FILE_DATA.lock().unwrap() = Some(file_data);
+            }
+        });
+    }
+
+    fn save_to_file(&mut self) {
+        let remapped_address = self.sm.save_to_rom();
+        self.selected_palette = remapped_address[&self.selected_palette];
+
+        super::app::save_file(&self.sm.rom);
+    }
+
+    fn draw_combo_box_palette_selection(&self, ui: &mut egui::Ui) -> Option<usize> {
+        let mut selection = usize::default();
+
         egui::ComboBox::from_label("Palette")
             .selected_text(format!("{:x?}", self.selected_palette))
             .show_ui(ui, |ui| {
                 for palette in self.sm.palettes.keys() {
-                    ui.selectable_value(
-                        &mut self.selected_palette,
-                        *palette,
-                        format!("{:x?}", palette),
-                    );
+                    ui.selectable_value(&mut selection, *palette, format!("{:x?}", palette));
                 }
             });
-        if previous_selection != self.selected_palette {
-            self.palette
-                .load_texture(frame, &self.sm.palettes[&self.selected_palette]);
-        }
+
+        (selection != usize::default() && selection != self.selected_palette).then(|| selection)
     }
 }
 
