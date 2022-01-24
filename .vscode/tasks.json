@@ -1,0 +1,44 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "cargo",
+			"command": "run",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"label": "rust: cargo run",
+		},
+		{
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"rust: cargo build wasm",
+				"rust: wasm-bindgen",
+				"serve web",
+			],
+			"problemMatcher": [],
+			"label": "rust: cargo run wasm",
+		},
+		{
+			"type": "cargo",
+			"command": "build",
+			"args": ["--lib", "--target", "wasm32-unknown-unknown"],
+			"problemMatcher": [
+				"$rustc"
+			],
+			"label": "rust: cargo build wasm",
+		},
+		{
+			"command": "wasm-bindgen",
+			"args": ["--out-dir", "web", "--no-modules", "--no-typescript", "target/wasm32-unknown-unknown/debug/zen_sm.wasm"],
+			"problemMatcher": [],
+			"label": "rust: wasm-bindgen",
+		},
+		{
+			"command": "basic-http-server",
+			"args": ["--addr", "127.0.0.1:8080", "web/"],
+			"problemMatcher": [],
+			"label": "serve web",
+		},
+	]
+}
