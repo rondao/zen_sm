@@ -2,13 +2,10 @@ use std::sync::Mutex;
 
 use futures::Future;
 
-use eframe::{
-    egui::{self, Vec2},
-    epi,
-};
-use zen::super_metroid::{self, SuperMetroid};
-
 use crate::widgets;
+use eframe::egui::{self, Vec2};
+
+use zen::super_metroid::{self, SuperMetroid};
 
 lazy_static::lazy_static! {
     static ref SELECTED_FILE_DATA: Mutex<Option<Vec<u8>>> = Mutex::new(None);
@@ -27,16 +24,13 @@ enum Menu {
     None,
 }
 
-impl epi::App for ZenSM {
-    fn name(&self) -> &str {
-        "Zen SM"
-    }
-
-    fn update(&mut self, ctx: &egui::CtxRef, frame: &epi::Frame) {
+impl eframe::App for ZenSM {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         // Check if user selected a file.
         if let Ok(mut mutex_content) = SELECTED_FILE_DATA.lock() {
             if let Some(data) = &*mutex_content {
-                self.load_data_rom(data, frame);
+                self.load_data_rom(data);
+                self.palette.invalidate_texture();
                 *mutex_content = None;
             }
         }
@@ -55,17 +49,14 @@ impl epi::App for ZenSM {
                     if !self.sm.palettes.is_empty() {
                         if let Some(selected_palette) = self.draw_combo_box_palette_selection(ui) {
                             self.selected_palette = selected_palette;
-                            self.load_palette_texture(frame);
+                            self.palette.invalidate_texture();
                         }
 
-                        let response = self.palette.ui(
+                        self.palette.ui(
                             ui,
                             self.sm.palettes.get_mut(&self.selected_palette).unwrap(),
                             Vec2 { x: 300.0, y: 150.0 },
                         );
-                        if response.changed() {
-                            self.load_palette_texture(frame);
-                        }
                     }
                 });
             });
@@ -73,12 +64,10 @@ impl epi::App for ZenSM {
 }
 
 impl ZenSM {
-    fn load_data_rom(&mut self, data: &Vec<u8>, frame: &epi::Frame) {
+    fn load_data_rom(&mut self, data: &Vec<u8>) {
         if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
             self.sm = sm;
-
             self.selected_palette = *self.sm.palettes.keys().next().unwrap();
-            self.load_palette_texture(frame)
         }
     }
 
@@ -97,11 +86,6 @@ impl ZenSM {
             });
         });
         selected_menu
-    }
-
-    fn load_palette_texture(&mut self, frame: &epi::Frame) {
-        self.palette
-            .load_texture(frame, &self.sm.palettes[&self.selected_palette]);
     }
 
     fn load_from_file(&self) {

@@ -5,5 +5,9 @@
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
     let app = zen_sm::ZenSM::default();
-    eframe::run_native(Box::new(app), eframe::NativeOptions::default());
+    eframe::run_native(
+        "Zen SM",
+        eframe::NativeOptions::default(),
+        Box::new(|_cc| Box::new(app)),
+    );
 }
