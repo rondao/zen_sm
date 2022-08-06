@@ -5,7 +5,10 @@ use futures::Future;
 use crate::widgets;
 use eframe::egui::{self, Vec2};
 
-use zen::super_metroid::{self, SuperMetroid};
+use zen::{
+    graphics::gfx::{GFX_TILE_WIDTH, TILE_SIZE},
+    super_metroid::{self, SuperMetroid},
+};
 
 lazy_static::lazy_static! {
     static ref SELECTED_FILE_DATA: Mutex<Option<Vec<u8>>> = Mutex::new(None);
@@ -15,7 +18,9 @@ lazy_static::lazy_static! {
 pub struct ZenSM {
     sm: SuperMetroid,
     palette: widgets::PaletteEditor,
+    graphics: widgets::GraphicsEditor,
     selected_palette: usize,
+    selected_graphic: usize,
 }
 
 enum Menu {
@@ -31,6 +36,7 @@ impl eframe::App for ZenSM {
             if let Some(data) = &*mutex_content {
                 self.load_data_rom(data);
                 self.palette.invalidate_texture();
+                self.graphics.invalidate_texture();
                 *mutex_content = None;
             }
         }
@@ -50,15 +56,43 @@ impl eframe::App for ZenSM {
                         if let Some(selected_palette) = self.draw_combo_box_palette_selection(ui) {
                             self.selected_palette = selected_palette;
                             self.palette.invalidate_texture();
+                            self.graphics.invalidate_texture();
                         }
 
-                        self.palette.ui(
+                        let response = self.palette.ui(
                             ui,
                             self.sm.palettes.get_mut(&self.selected_palette).unwrap(),
                             Vec2 { x: 300.0, y: 150.0 },
                         );
+                        if response.changed() {
+                            self.graphics.invalidate_texture();
+                        }
                     }
                 });
+            });
+
+        egui::SidePanel::right("right_panel")
+            .default_width((GFX_TILE_WIDTH * TILE_SIZE) as f32)
+            .show(ctx, |ui| {
+                if !self.sm.graphics.is_empty() {
+                    if let Some(selected_graphic) = self.draw_combo_box_graphic_selection(ui) {
+                        self.selected_graphic = selected_graphic;
+                        self.graphics.invalidate_texture();
+                    }
+
+                    let gfx = self.sm.gfx_with_cre(self.selected_graphic);
+                    let [x, y] = gfx.size();
+
+                    self.graphics.ui(
+                        ui,
+                        &gfx,
+                        &self.sm.palettes[&self.selected_palette].sub_palettes[0],
+                        Vec2 {
+                            x: x as f32,
+                            y: y as f32,
+                        },
+                    );
+                }
             });
     }
 }
@@ -68,6 +102,7 @@ impl ZenSM {
         if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
             self.sm = sm;
             self.selected_palette = *self.sm.palettes.keys().next().unwrap();
+            self.selected_graphic = *self.sm.graphics.keys().next().unwrap();
         }
     }
 
@@ -116,6 +151,20 @@ impl ZenSM {
             });
 
         (selection != usize::default() && selection != self.selected_palette).then(|| selection)
+    }
+
+    fn draw_combo_box_graphic_selection(&self, ui: &mut egui::Ui) -> Option<usize> {
+        let mut selection = usize::default();
+
+        egui::ComboBox::from_label("Graphic")
+            .selected_text(format!("{:x?}", self.selected_graphic))
+            .show_ui(ui, |ui| {
+                for palette in self.sm.graphics.keys() {
+                    ui.selectable_value(&mut selection, *palette, format!("{:x?}", palette));
+                }
+            });
+
+        (selection != usize::default() && selection != self.selected_graphic).then(|| selection)
     }
 }
 
