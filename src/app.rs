@@ -35,8 +35,8 @@ impl eframe::App for ZenSM {
         if let Ok(mut mutex_content) = SELECTED_FILE_DATA.lock() {
             if let Some(data) = &*mutex_content {
                 self.load_data_rom(data);
-                self.palette.invalidate_texture();
-                self.graphics.invalidate_texture();
+                self.palette.editor.invalidate_texture();
+                self.graphics.editor.invalidate_texture();
                 *mutex_content = None;
             }
         }
@@ -55,8 +55,8 @@ impl eframe::App for ZenSM {
                     if !self.sm.palettes.is_empty() {
                         if let Some(selected_palette) = self.draw_combo_box_palette_selection(ui) {
                             self.selected_palette = selected_palette;
-                            self.palette.invalidate_texture();
-                            self.graphics.invalidate_texture();
+                            self.palette.editor.invalidate_texture();
+                            self.graphics.editor.invalidate_texture();
                         }
 
                         let response = self.palette.ui(
@@ -65,7 +65,7 @@ impl eframe::App for ZenSM {
                             Vec2 { x: 300.0, y: 150.0 },
                         );
                         if response.changed() {
-                            self.graphics.invalidate_texture();
+                            self.graphics.editor.invalidate_texture();
                         }
                     }
                 });
@@ -77,7 +77,7 @@ impl eframe::App for ZenSM {
                 if !self.sm.graphics.is_empty() {
                     if let Some(selected_graphic) = self.draw_combo_box_graphic_selection(ui) {
                         self.selected_graphic = selected_graphic;
-                        self.graphics.invalidate_texture();
+                        self.graphics.editor.invalidate_texture();
                     }
 
                     let gfx = self.sm.gfx_with_cre(self.selected_graphic);

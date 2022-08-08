@@ -1,3 +1,4 @@
+mod editor;
 mod graphics;
 mod palette;
 
