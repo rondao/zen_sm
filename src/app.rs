@@ -19,6 +19,7 @@ pub struct ZenSM {
     sm: SuperMetroid,
     palette: widgets::PaletteEditor,
     graphics: widgets::GraphicsEditor,
+    tiletable: widgets::TileTableEditor,
     selected_palette: usize,
     selected_graphic: usize,
 }
@@ -49,9 +50,8 @@ impl eframe::App for ZenSM {
 
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(true)
-            .default_height(300.0)
             .show(ctx, |ui| {
-                egui::ScrollArea::vertical().show(ui, |ui| {
+                egui::SidePanel::right("bottom_right_panel").show_inside(ui, |ui| {
                     if !self.sm.palettes.is_empty() {
                         if let Some(selected_palette) = self.draw_combo_box_palette_selection(ui) {
                             self.selected_palette = selected_palette;
@@ -69,6 +69,24 @@ impl eframe::App for ZenSM {
                         }
                     }
                 });
+                if !self.sm.tile_tables.is_empty() {
+                    let tile_table = self
+                        .sm
+                        .tile_table_with_cre(*self.sm.tile_tables.keys().next().unwrap());
+
+                    let size = super_metroid::tileset::tileset_size();
+
+                    self.tiletable.ui(
+                        ui,
+                        &tile_table,
+                        &self.sm.gfx_with_cre(self.selected_graphic),
+                        &self.sm.palettes[&self.selected_palette],
+                        Vec2 {
+                            x: size[0] as f32,
+                            y: size[1] as f32,
+                        },
+                    );
+                }
             });
 
         egui::SidePanel::right("right_panel")

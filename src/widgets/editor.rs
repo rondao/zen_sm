@@ -7,8 +7,8 @@ use zen::graphics::Rgb888;
 
 pub struct Editor {
     name: String,
-    texture: Option<TextureHandle>, // Texture for the palette colors.
-    pub selected: Option<Pos2>,     // Position to draw the square selection.
+    pub texture: Option<TextureHandle>, // Texture for the palette colors.
+    pub selected: Option<Pos2>,         // Position to draw the square selection.
 }
 
 impl Editor {
