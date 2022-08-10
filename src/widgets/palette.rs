@@ -22,7 +22,7 @@ pub struct PaletteEditor {
 impl Default for PaletteEditor {
     fn default() -> Self {
         Self {
-            editor: Editor::new("GraphicsEditor".to_string()),
+            editor: Editor::new("PaletteEditor".to_string()),
             color_edit_popup_id: Id::new("palette_color_popup_id"),
             editing_color: Color32::default(),
         }
