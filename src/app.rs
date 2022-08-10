@@ -36,6 +36,9 @@ enum Menu {
 
 impl eframe::App for ZenSM {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        puffin::profile_function!();
+        puffin::GlobalProfiler::lock().new_frame();
+
         // Check if user selected a file.
         if let Ok(mut mutex_content) = SELECTED_FILE_DATA.lock() {
             if let Some(data) = &*mutex_content {

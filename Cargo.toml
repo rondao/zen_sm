@@ -9,6 +9,8 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 eframe = "0.18.0" # Gives us egui, epi and web+native backends
+puffin = "0.13.3"
+puffin_http = "0.10.0"
 zen = { version = "0.1.0", path = "../zen" }
 serde = { version = "1", features = ["derive"], optional = true }
 rfd = "0.6.4"
