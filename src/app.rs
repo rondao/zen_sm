@@ -24,8 +24,7 @@ pub struct ZenSM {
     palette: widgets::PaletteEditor,
     graphics: widgets::GraphicsEditor,
     tiletable: widgets::TileTableEditor,
-    selected_palette: usize,
-    selected_graphic: usize,
+    selected_tileset: usize,
 }
 
 enum Menu {
@@ -48,7 +47,7 @@ impl eframe::App for ZenSM {
             }
         }
 
-        egui::TopBottomPanel::top("top_menu").show(ctx, |ui| match self.draw_menu(ui) {
+        egui::TopBottomPanel::top("top_menu").show(ctx, |ui| match ZenSM::draw_menu(ui) {
             Menu::LoadFromFile => self.load_from_file(),
             Menu::SaveToFile => self.save_to_file(),
             Menu::None => (),
@@ -59,14 +58,14 @@ impl eframe::App for ZenSM {
             .show(ctx, |ui| {
                 egui::SidePanel::right("bottom_right_panel").show_inside(ui, |ui| {
                     if !self.sm.palettes.is_empty() {
-                        if let Some(selected_palette) = self.draw_combo_box_palette_selection(ui) {
-                            self.selected_palette = selected_palette;
-                            self.reload_textures(ctx);
-                        }
-
                         let response = self.palette.ui(
                             ui,
-                            self.sm.palettes.get_mut(&self.selected_palette).unwrap(),
+                            self.sm
+                                .palettes
+                                .get_mut(
+                                    &(self.sm.tilesets[self.selected_tileset].palette as usize),
+                                )
+                                .unwrap(),
                             Vec2 { x: 300.0, y: 150.0 },
                         );
                         if response.changed() {
@@ -89,24 +88,66 @@ impl eframe::App for ZenSM {
         egui::SidePanel::right("right_panel")
             .default_width((GFX_TILE_WIDTH * TILE_SIZE) as f32)
             .show(ctx, |ui| {
-                if !self.sm.graphics.is_empty() {
-                    if let Some(selected_graphic) = self.draw_combo_box_graphic_selection(ui) {
-                        self.selected_graphic = selected_graphic;
-                        self.reload_textures(ctx);
+                egui::TopBottomPanel::top("Tileset").show_inside(ui, |ui| {
+                    if !self.sm.tilesets.is_empty() {
+                        if let Some(selection) = ZenSM::draw_combo_box(
+                            ui,
+                            "Tileset",
+                            (0..self.sm.tilesets.len()).collect::<Vec<usize>>().iter(),
+                            self.selected_tileset,
+                        ) {
+                            self.selected_tileset = selection;
+                            self.reload_textures(ctx);
+                        };
+
+                        let tileset = self.sm.tilesets[self.selected_tileset];
+                        if let Some(selection) = ZenSM::draw_combo_box(
+                            ui,
+                            "Palette",
+                            self.sm.palettes.keys(),
+                            tileset.palette as usize,
+                        ) {
+                            self.sm.tilesets[self.selected_tileset].palette = selection as u32;
+                            self.reload_textures(ctx);
+                        }
+                        if let Some(selection) = ZenSM::draw_combo_box(
+                            ui,
+                            "Graphic",
+                            self.sm.graphics.keys(),
+                            tileset.graphic as usize,
+                        ) {
+                            self.sm.tilesets[self.selected_tileset].graphic = selection as u32;
+                            self.reload_textures(ctx);
+                        };
+                        if let Some(selection) = ZenSM::draw_combo_box(
+                            ui,
+                            "Tile Table",
+                            self.sm.tile_tables.keys(),
+                            tileset.tile_table as usize,
+                        ) {
+                            self.sm.tilesets[self.selected_tileset].tile_table = selection as u32;
+                            self.reload_textures(ctx);
+                        };
                     }
+                });
 
-                    let gfx = self.sm.gfx_with_cre(self.selected_graphic);
-                    let [x, y] = gfx.size();
+                egui::TopBottomPanel::bottom("Graphics").show_inside(ui, |ui| {
+                    if !self.sm.graphics.is_empty() {
+                        let gfx = self
+                            .sm
+                            .gfx_with_cre(self.sm.tilesets[self.selected_tileset].graphic as usize);
+                        let [x, y] = gfx.size();
 
-                    self.graphics.ui(
-                        ui,
-                        &gfx,
-                        Vec2 {
-                            x: x as f32,
-                            y: y as f32,
-                        },
-                    );
-                }
+                        self.graphics.ui(
+                            ui,
+                            &gfx,
+                            Vec2 {
+                                x: x as f32,
+                                y: y as f32,
+                            },
+                        );
+                    }
+                });
             });
     }
 }
@@ -115,12 +156,10 @@ impl ZenSM {
     fn load_data_rom(&mut self, data: &Vec<u8>) {
         if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
             self.sm = sm;
-            self.selected_palette = *self.sm.palettes.keys().next().unwrap();
-            self.selected_graphic = *self.sm.graphics.keys().next().unwrap();
         }
     }
 
-    fn draw_menu(&mut self, ui: &mut egui::Ui) -> Menu {
+    fn draw_menu(ui: &mut egui::Ui) -> Menu {
         let mut selected_menu = Menu::None;
         egui::menu::bar(ui, |ui| {
             ui.menu_button("File", |ui| {
@@ -147,9 +186,7 @@ impl ZenSM {
     }
 
     fn save_to_file(&mut self) {
-        let remapped_address = self.sm.save_to_rom();
-        self.selected_palette = remapped_address[&self.selected_palette];
-
+        self.sm.save_to_rom();
         super::app::save_file(&self.sm.rom);
     }
 
@@ -160,19 +197,25 @@ impl ZenSM {
     }
 
     fn reload_palette_texture(&mut self, ctx: &Context) {
-        self.palette
-            .load_texture(ctx, self.sm.palettes[&self.selected_palette].to_colors());
+        self.palette.load_texture(
+            ctx,
+            self.sm.palettes[&(self.sm.tilesets[self.selected_tileset].palette as usize)]
+                .to_colors(),
+        );
     }
 
     fn reload_gfx_texture(&mut self, ctx: &Context) {
-        let gfx = self.sm.gfx_with_cre(self.selected_graphic);
+        let gfx = self
+            .sm
+            .gfx_with_cre(self.sm.tilesets[self.selected_tileset].graphic as usize);
         self.graphics.editor.load_texture(
             ctx,
             gfx.to_indexed_colors()
                 .into_iter()
                 .map(|idx_color| {
-                    self.sm.palettes[&self.selected_palette].sub_palettes[0].colors
-                        [idx_color as usize]
+                    self.sm.palettes[&(self.sm.tilesets[self.selected_tileset].palette as usize)]
+                        .sub_palettes[0]
+                        .colors[idx_color as usize]
                         .into()
                 })
                 .collect(),
@@ -184,42 +227,35 @@ impl ZenSM {
         self.tiletable.editor.load_texture(
             ctx,
             tileset_to_colors(
+                &self.sm.tile_table_with_cre(
+                    self.sm.tilesets[self.selected_tileset].tile_table as usize,
+                ),
+                &self.sm.palettes[&(self.sm.tilesets[self.selected_tileset].palette as usize)],
                 &self
                     .sm
-                    .tile_table_with_cre(*self.sm.tile_tables.keys().next().unwrap()),
-                &self.sm.palettes[&self.selected_palette],
-                &self.sm.gfx_with_cre(self.selected_graphic),
+                    .gfx_with_cre(self.sm.tilesets[self.selected_tileset].graphic as usize),
             ),
             tileset_size(),
         );
     }
 
-    fn draw_combo_box_palette_selection(&self, ui: &mut egui::Ui) -> Option<usize> {
-        let mut selection = usize::default();
+    fn draw_combo_box<'a>(
+        ui: &mut egui::Ui,
+        label: &str,
+        items: impl IntoIterator<Item = &'a usize>,
+        selected: usize,
+    ) -> Option<usize> {
+        let mut selection = usize::MAX;
 
-        egui::ComboBox::from_label("Palette")
-            .selected_text(format!("{:x?}", self.selected_palette))
+        egui::ComboBox::from_label(label)
+            .selected_text(format!("{:x?}", selected))
             .show_ui(ui, |ui| {
-                for palette in self.sm.palettes.keys() {
-                    ui.selectable_value(&mut selection, *palette, format!("{:x?}", palette));
+                for item in items {
+                    ui.selectable_value(&mut selection, *item, format!("{:x?}", item));
                 }
             });
 
-        (selection != usize::default() && selection != self.selected_palette).then(|| selection)
-    }
-
-    fn draw_combo_box_graphic_selection(&self, ui: &mut egui::Ui) -> Option<usize> {
-        let mut selection = usize::default();
-
-        egui::ComboBox::from_label("Graphic")
-            .selected_text(format!("{:x?}", self.selected_graphic))
-            .show_ui(ui, |ui| {
-                for palette in self.sm.graphics.keys() {
-                    ui.selectable_value(&mut selection, *palette, format!("{:x?}", palette));
-                }
-            });
-
-        (selection != usize::default() && selection != self.selected_graphic).then(|| selection)
+        (selection != usize::MAX && selection != selected).then(|| selection)
     }
 }
 
