@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{Image, Response, Sense, Ui},
+    egui::{Context, Image, Response, Sense, Ui},
     emath::RectTransform,
     epaint::{Color32, ColorImage, Pos2, Rect, Stroke, TextureHandle, Vec2},
 };
@@ -23,23 +23,12 @@ impl Editor {
     pub fn ui(
         &mut self,
         ui: &mut Ui,
-        colors: Vec<Rgb888>,
         texture_size: [usize; 2],
         selection_size: [f32; 2],
         widget_size: Vec2,
     ) -> Response {
-        let (widget_rect, response) = create_texture_area(
-            ui,
-            self.texture.get_or_insert(ui.ctx().load_texture(
-                &self.name,
-                ColorImage::from_rgba_unmultiplied(
-                    texture_size,
-                    &rgb888s_to_texture(&colors),
-                    // egui::epaint::textures::TextureFilter::Nearest, // This feature is already merged on master, to be available later.
-                ),
-            )),
-            widget_size,
-        );
+        let (widget_rect, response) =
+            create_texture_area(ui, self.texture.as_ref().unwrap(), widget_size);
 
         // Pointer's screen to palette's color transformations.
         let transform_selection_to_screen = RectTransform::from_to(
@@ -91,8 +80,15 @@ impl Editor {
         response
     }
 
-    pub fn invalidate_texture(&mut self) {
-        self.texture = None;
+    pub fn load_texture(&mut self, ctx: &Context, colors: Vec<Rgb888>, texture_size: [usize; 2]) {
+        self.texture = Some(ctx.load_texture(
+            &self.name,
+            ColorImage::from_rgba_unmultiplied(
+                texture_size,
+                &rgb888s_to_texture(&colors),
+                // egui::epaint::textures::TextureFilter::Nearest, // This feature is already merged on master, to be available later.
+            ),
+        ));
     }
 }
 

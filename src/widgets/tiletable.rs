@@ -1,14 +1,8 @@
 use eframe::{
-    egui::{self, Ui},
+    egui::{Response, Ui},
     epaint::Vec2,
 };
-use zen::{
-    graphics::{gfx::GFX_TILE_WIDTH, Gfx, Palette},
-    super_metroid::{
-        tile_table::TileTable,
-        tileset::{tileset_size, tileset_to_colors},
-    },
-};
+use zen::{graphics::gfx::GFX_TILE_WIDTH, super_metroid::tileset::tileset_size};
 
 use super::editor::Editor;
 
@@ -27,20 +21,8 @@ impl Default for TileTableEditor {
 }
 
 impl TileTableEditor {
-    pub fn ui(
-        &mut self,
-        ui: &mut Ui,
-        tile_table: &TileTable,
-        graphics: &Gfx,
-        palette: &Palette,
-        widget_size: Vec2,
-    ) -> egui::Response {
-        self.editor.ui(
-            ui,
-            tileset_to_colors(tile_table, palette, graphics),
-            tileset_size(),
-            SELECTION_SIZE,
-            widget_size,
-        )
+    pub fn ui(&mut self, ui: &mut Ui, widget_size: Vec2) -> Response {
+        self.editor
+            .ui(ui, tileset_size(), SELECTION_SIZE, widget_size)
     }
 }

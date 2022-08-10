@@ -1,11 +1,11 @@
 use eframe::{
-    egui::{self, color, color_picker, containers, Id, Response, Ui},
+    egui::{self, color, color_picker, containers, Context, Id, Response, Ui},
     epaint::{Color32, Vec2},
 };
 use zen::graphics::{
     self,
     palette::{COLORS_BY_SUB_PALETTE, NUMBER_OF_SUB_PALETTES},
-    Palette,
+    Palette, Rgb888,
 };
 
 use super::editor::Editor;
@@ -31,13 +31,9 @@ impl Default for PaletteEditor {
 
 impl PaletteEditor {
     pub fn ui(&mut self, ui: &mut Ui, palette: &mut Palette, widget_size: Vec2) -> Response {
-        let mut response = self.editor.ui(
-            ui,
-            palette.to_colors(),
-            PALETTE_SIZE,
-            SELECTION_SIZE,
-            widget_size,
-        );
+        let mut response = self
+            .editor
+            .ui(ui, PALETTE_SIZE, SELECTION_SIZE, widget_size);
 
         // Open a color picker and select the color.
         if response.secondary_clicked() {
@@ -63,7 +59,6 @@ impl PaletteEditor {
         if ui.memory().is_popup_open(self.color_edit_popup_id) {
             self.ui_color_picker(ui, &mut response);
             if response.changed() {
-                self.editor.invalidate_texture();
                 if let Some(selected_index) = self.editor.selected {
                     palette.sub_palettes[selected_index.y as usize].colors
                         [selected_index.x as usize] = graphics::Rgb888 {
@@ -104,5 +99,9 @@ impl PaletteEditor {
             ui.memory().close_popup();
             self.editor.selected = None;
         }
+    }
+
+    pub fn load_texture(&mut self, ctx: &Context, colors: Vec<Rgb888>) {
+        self.editor.load_texture(ctx, colors, PALETTE_SIZE);
     }
 }

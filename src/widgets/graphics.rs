@@ -1,8 +1,8 @@
 use eframe::{
-    egui::{self, Ui},
+    egui::{Response, Ui},
     epaint::Vec2,
 };
-use zen::graphics::{gfx::GFX_TILE_WIDTH, Gfx, SubPalette};
+use zen::graphics::{gfx::GFX_TILE_WIDTH, Gfx};
 
 use super::editor::Editor;
 
@@ -21,22 +21,7 @@ impl Default for GraphicsEditor {
 }
 
 impl GraphicsEditor {
-    pub fn ui(
-        &mut self,
-        ui: &mut Ui,
-        gfx: &Gfx,
-        sub_palette: &SubPalette,
-        widget_size: Vec2,
-    ) -> egui::Response {
-        self.editor.ui(
-            ui,
-            gfx.to_indexed_colors()
-                .into_iter()
-                .map(|idx_color| sub_palette.colors[idx_color as usize].into())
-                .collect(),
-            gfx.size(),
-            SELECTION_SIZE,
-            widget_size,
-        )
+    pub fn ui(&mut self, ui: &mut Ui, gfx: &Gfx, widget_size: Vec2) -> Response {
+        self.editor.ui(ui, gfx.size(), SELECTION_SIZE, widget_size)
     }
 }
