@@ -7,25 +7,6 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'zen_sm'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--lib",
-                    "--package=zen_sm"
-                ],
-                "filter": {
-                    "name": "zen_sm",
-                    "kind": "lib"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
             "name": "Debug executable 'zen_sm'",
             "cargo": {
                 "args": [
@@ -44,17 +25,17 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'zen_sm'",
+            "name": "Debug unit tests in library 'zen_sm'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=zen_sm",
+                    "--lib",
                     "--package=zen_sm"
                 ],
                 "filter": {
                     "name": "zen_sm",
-                    "kind": "bin"
+                    "kind": "lib"
                 }
             },
             "args": [],

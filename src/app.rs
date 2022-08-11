@@ -21,7 +21,9 @@ pub struct ZenSM {
     palette: widgets::PaletteEditor,
     graphics: widgets::GraphicsEditor,
     tiletable: widgets::TileTableEditor,
-    selected_tileset: usize,
+    level: widgets::LevelEditor,
+    selected_room: usize,
+    selected_state: usize,
 }
 
 enum Menu {
@@ -50,25 +52,38 @@ impl eframe::App for ZenSM {
             Menu::None => (),
         });
 
-        egui::TopBottomPanel::bottom("bottom")
-            .resizable(true)
-            .default_height(150.0)
-            .show(ctx, |ui| {
-                egui::SidePanel::right("bottom_right").show_inside(ui, |ui| {
-                    self.draw_palette(ui);
-                });
-                self.draw_tile_table(ui);
-            });
+        if !self.sm.states.is_empty() {
+            let state = &self.sm.states[&self.selected_state];
+            let tileset = self.sm.tilesets[state.tileset as usize];
+            let tileset_idx = state.tileset;
 
-        egui::SidePanel::right("right_panel")
-            .resizable(true)
-            .default_width(150.0)
-            .show(ctx, |ui| {
-                egui::TopBottomPanel::top("Tileset").show_inside(ui, |ui| {
-                    self.draw_tileset_selector(ui);
+            egui::TopBottomPanel::bottom("bottom")
+                .resizable(true)
+                .default_height(150.0)
+                .show(ctx, |ui| {
+                    egui::SidePanel::right("bottom_right").show_inside(ui, |ui| {
+                        self.draw_palette(ui, tileset.palette as usize);
+                    });
+                    self.draw_tile_table(ui);
                 });
-                self.draw_graphics(ui);
+
+            egui::SidePanel::right("right_panel")
+                .resizable(true)
+                .default_width(150.0)
+                .show(ctx, |ui| {
+                    egui::TopBottomPanel::top("Tileset").show_inside(ui, |ui| {
+                        self.draw_room_selector(ui);
+                    });
+                    egui::TopBottomPanel::top("Tileset").show_inside(ui, |ui| {
+                        self.draw_tileset_selector(ui, tileset_idx as usize);
+                    });
+                    self.draw_graphics(ui, tileset.graphic as usize);
+                });
+
+            egui::CentralPanel::default().show(ctx, |ui| {
+                self.draw_level(ui);
             });
+        }
     }
 }
 
@@ -76,6 +91,10 @@ impl ZenSM {
     fn load_data_rom(&mut self, data: &Vec<u8>) {
         if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
             self.sm = sm;
+
+            let (room_address, room) = self.sm.rooms.iter().next().unwrap();
+            self.selected_room = *room_address;
+            self.selected_state = room.state_conditions[0].state_address as usize;
         }
     }
 
@@ -96,15 +115,12 @@ impl ZenSM {
         selected_menu
     }
 
-    fn draw_palette(&mut self, ui: &mut Ui) {
+    fn draw_palette(&mut self, ui: &mut Ui, palette: usize) {
         if !self.sm.palettes.is_empty() {
             egui::ScrollArea::vertical().show(ui, |ui| {
                 let response = self.palette.ui(
                     ui,
-                    self.sm
-                        .palettes
-                        .get_mut(&(self.sm.tilesets[self.selected_tileset].palette as usize))
-                        .unwrap(),
+                    self.sm.palettes.get_mut(&palette).unwrap(),
                     Vec2 { x: 300.0, y: 150.0 },
                 );
                 if response.changed() {
@@ -114,12 +130,10 @@ impl ZenSM {
         }
     }
 
-    fn draw_graphics(&mut self, ui: &mut Ui) {
+    fn draw_graphics(&mut self, ui: &mut Ui, graphic: usize) {
         if !self.sm.graphics.is_empty() {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let gfx = self
-                    .sm
-                    .gfx_with_cre(self.sm.tilesets[self.selected_tileset].graphic as usize);
+                let gfx = self.sm.gfx_with_cre(graphic);
                 let [x, y] = gfx.size();
 
                 self.graphics.ui(
@@ -149,26 +163,30 @@ impl ZenSM {
         }
     }
 
-    fn draw_tileset_selector(&mut self, ui: &mut Ui) {
+    fn draw_tileset_selector(&mut self, ui: &mut Ui, tileset_idx: usize) {
         if !self.sm.tilesets.is_empty() {
             if let Some(selection) = ZenSM::draw_combo_box(
                 ui,
                 "Tileset",
                 (0..self.sm.tilesets.len()).collect::<Vec<usize>>().iter(),
-                self.selected_tileset,
+                tileset_idx,
             ) {
-                self.selected_tileset = selection;
+                self.sm
+                    .states
+                    .get_mut(&self.selected_state)
+                    .unwrap()
+                    .tileset = selection as u8;
                 self.reload_textures(ui.ctx());
             };
 
-            let tileset = self.sm.tilesets[self.selected_tileset];
+            let tileset = self.sm.tilesets[tileset_idx];
             if let Some(selection) = ZenSM::draw_combo_box(
                 ui,
                 "Palette",
                 self.sm.palettes.keys(),
                 tileset.palette as usize,
             ) {
-                self.sm.tilesets[self.selected_tileset].palette = selection as u32;
+                self.sm.tilesets[tileset_idx].palette = selection as u32;
                 self.reload_textures(ui.ctx());
             }
             if let Some(selection) = ZenSM::draw_combo_box(
@@ -177,7 +195,7 @@ impl ZenSM {
                 self.sm.graphics.keys(),
                 tileset.graphic as usize,
             ) {
-                self.sm.tilesets[self.selected_tileset].graphic = selection as u32;
+                self.sm.tilesets[tileset_idx].graphic = selection as u32;
                 self.reload_textures(ui.ctx());
             };
             if let Some(selection) = ZenSM::draw_combo_box(
@@ -186,9 +204,47 @@ impl ZenSM {
                 self.sm.tile_tables.keys(),
                 tileset.tile_table as usize,
             ) {
-                self.sm.tilesets[self.selected_tileset].tile_table = selection as u32;
+                self.sm.tilesets[tileset_idx].tile_table = selection as u32;
                 self.reload_textures(ui.ctx());
             };
+        }
+    }
+
+    fn draw_room_selector(&mut self, ui: &mut Ui) {
+        if !self.sm.rooms.is_empty() {
+            if let Some(selection) =
+                ZenSM::draw_combo_box(ui, "Room", self.sm.rooms.keys(), self.selected_room)
+            {
+                self.selected_room = selection;
+                let room = &self.sm.rooms[&self.selected_room];
+
+                self.selected_state = room.state_conditions[0].state_address as usize;
+                self.reload_textures(ui.ctx());
+            };
+
+            let room = &self.sm.rooms[&self.selected_room];
+            if let Some(selection) = ZenSM::draw_combo_box(
+                ui,
+                "State",
+                room.state_conditions
+                    .iter()
+                    .map(|state_condition| state_condition.state_address as usize)
+                    .collect::<Vec<_>>()
+                    .iter(),
+                self.selected_state,
+            ) {
+                self.selected_state = selection;
+                self.reload_textures(ui.ctx());
+            };
+        }
+    }
+
+    fn draw_level(&mut self, ui: &mut Ui) {
+        if !self.sm.states.is_empty() {
+            egui::ScrollArea::both().show(ui, |ui| {
+                let room = &self.sm.rooms[&self.selected_room];
+                self.level.ui(ui, &room);
+            });
         }
     }
 
@@ -229,26 +285,29 @@ impl ZenSM {
         self.reload_palette_texture(ctx);
         self.reload_gfx_texture(ctx);
         self.reload_tile_table_texture(ctx);
+        self.reload_level_texture(ctx);
     }
 
     fn reload_palette_texture(&mut self, ctx: &Context) {
+        let state = self.sm.states[&self.selected_state];
         self.palette.load_texture(
             ctx,
-            self.sm.palettes[&(self.sm.tilesets[self.selected_tileset].palette as usize)]
+            self.sm.palettes[&(self.sm.tilesets[state.tileset as usize].palette as usize)]
                 .to_colors(),
         );
     }
 
     fn reload_gfx_texture(&mut self, ctx: &Context) {
+        let state = self.sm.states[&self.selected_state];
         let gfx = self
             .sm
-            .gfx_with_cre(self.sm.tilesets[self.selected_tileset].graphic as usize);
+            .gfx_with_cre(self.sm.tilesets[state.tileset as usize].graphic as usize);
         self.graphics.editor.load_texture(
             ctx,
             gfx.to_indexed_colors()
                 .into_iter()
                 .map(|idx_color| {
-                    self.sm.palettes[&(self.sm.tilesets[self.selected_tileset].palette as usize)]
+                    self.sm.palettes[&(self.sm.tilesets[state.tileset as usize].palette as usize)]
                         .sub_palettes[0]
                         .colors[idx_color as usize]
                         .into()
@@ -259,19 +318,33 @@ impl ZenSM {
     }
 
     fn reload_tile_table_texture(&mut self, ctx: &Context) {
+        let state = self.sm.states[&self.selected_state];
         self.tiletable.editor.load_texture(
             ctx,
             tileset_to_colors(
                 &self.sm.tile_table_with_cre(
-                    self.sm.tilesets[self.selected_tileset].tile_table as usize,
+                    self.sm.tilesets[state.tileset as usize].tile_table as usize,
                 ),
-                &self.sm.palettes[&(self.sm.tilesets[self.selected_tileset].palette as usize)],
+                &self.sm.palettes[&(self.sm.tilesets[state.tileset as usize].palette as usize)],
                 &self
                     .sm
-                    .gfx_with_cre(self.sm.tilesets[self.selected_tileset].graphic as usize),
+                    .gfx_with_cre(self.sm.tilesets[state.tileset as usize].graphic as usize),
             ),
             tileset_size(),
         );
+    }
+
+    fn reload_level_texture(&mut self, ctx: &Context) {
+        let room = &self.sm.rooms[&self.selected_room];
+        let (level_data, _, palette, graphics, tile_table) = self
+            .sm
+            .get_state_data(&self.sm.states[&self.selected_state]);
+
+        let size = room.pixel_size();
+        let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
+        self.level
+            .editor
+            .load_texture(ctx, colors, [size.0, size.1]);
     }
 }
 
