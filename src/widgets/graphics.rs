@@ -1,6 +1,6 @@
 use eframe::{
     egui::{Response, Ui},
-    epaint::Vec2,
+    epaint::{Rect, Vec2},
 };
 use zen::graphics::{gfx::GFX_TILE_WIDTH, Gfx};
 
@@ -21,7 +21,7 @@ impl Default for GraphicsEditor {
 }
 
 impl GraphicsEditor {
-    pub fn ui(&mut self, ui: &mut Ui, gfx: &Gfx, widget_size: Vec2) -> Response {
+    pub fn ui(&mut self, ui: &mut Ui, gfx: &Gfx, widget_size: Vec2) -> (Response, Rect) {
         self.editor.ui(ui, gfx.size(), SELECTION_SIZE, widget_size)
     }
 }

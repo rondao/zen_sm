@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{Context, Image, Response, Sense, Ui},
+    egui::{Context, Image, Response, Sense, TextureFilter, Ui},
     emath::RectTransform,
     epaint::{Color32, ColorImage, Pos2, Rect, Stroke, TextureHandle, Vec2},
 };
@@ -7,8 +7,8 @@ use zen::graphics::Rgb888;
 
 pub struct Editor {
     name: String,
-    pub texture: Option<TextureHandle>, // Texture for the palette colors.
-    pub selected: Option<Pos2>,         // Position to draw the square selection.
+    pub texture: Option<TextureHandle>,
+    pub selected: Option<Pos2>, // Position to draw the square selection.
 }
 
 impl Editor {
@@ -26,7 +26,7 @@ impl Editor {
         texture_size: [usize; 2],
         selection_size: [f32; 2],
         widget_size: Vec2,
-    ) -> Response {
+    ) -> (Response, Rect) {
         let (widget_rect, response) =
             create_texture_area(ui, self.texture.as_ref().unwrap(), widget_size);
 
@@ -77,17 +77,14 @@ impl Editor {
             painter.rect_stroke(rect, 1.0, Stroke::new(2.0, Color32::WHITE));
         };
 
-        response
+        (response, widget_rect)
     }
 
     pub fn load_texture(&mut self, ctx: &Context, colors: Vec<Rgb888>, texture_size: [usize; 2]) {
         self.texture = Some(ctx.load_texture(
             &self.name,
-            ColorImage::from_rgba_unmultiplied(
-                texture_size,
-                &rgb888s_to_texture(&colors),
-                // egui::epaint::textures::TextureFilter::Nearest, // This feature is already merged on master, to be available later.
-            ),
+            ColorImage::from_rgba_unmultiplied(texture_size, &rgb888s_to_texture(&colors)),
+            TextureFilter::Nearest,
         ));
     }
 }

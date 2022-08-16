@@ -3,10 +3,11 @@ use std::sync::Mutex;
 use futures::Future;
 
 use crate::widgets::{self};
-use eframe::egui::{self, Context, Ui, Vec2};
+use eframe::egui::{self, Context, TextureFilter, Ui, Vec2};
 
 use zen::super_metroid::{
     self,
+    tile_table::BLOCK_SIZE,
     tileset::{tileset_size, tileset_to_colors},
     SuperMetroid,
 };
@@ -118,7 +119,7 @@ impl ZenSM {
     fn draw_palette(&mut self, ui: &mut Ui, palette: usize) {
         if !self.sm.palettes.is_empty() {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let response = self.palette.ui(
+                let (response, _) = self.palette.ui(
                     ui,
                     self.sm.palettes.get_mut(&palette).unwrap(),
                     Vec2 { x: 300.0, y: 150.0 },
@@ -340,11 +341,34 @@ impl ZenSM {
             .sm
             .get_state_data(&self.sm.states[&self.selected_state]);
 
-        let size = room.pixel_size();
+        let size = room.size_in_pixels();
         let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
-        self.level
-            .editor
-            .load_texture(ctx, colors, [size.0, size.1]);
+
+        self.level.editor.load_texture(ctx, colors, size);
+        self.level.set_size(ctx, size);
+
+        let bts_icons =
+            level_data
+                .layer1
+                .iter()
+                .zip(level_data.bts.iter())
+                .map(|(block, bts_block)| {
+                    self.level.bts_icons.get(&widgets::BtsTile {
+                        block_type: block.block_type,
+                        bts_block: *bts_block,
+                    })
+                });
+
+        let [x_blocks, _] = room.size_in_blocks();
+        for (i, bts_icon) in bts_icons.enumerate() {
+            if let Some(bts_icon) = bts_icon {
+                self.level.bts_texture.as_mut().unwrap().set_partial(
+                    [(i % x_blocks) * BLOCK_SIZE, (i / x_blocks) * BLOCK_SIZE],
+                    bts_icon.clone(),
+                    TextureFilter::Nearest,
+                );
+            }
+        }
     }
 }
 

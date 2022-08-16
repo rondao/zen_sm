@@ -1,6 +1,6 @@
 use eframe::{
     egui::{Response, Ui},
-    epaint::Vec2,
+    epaint::{Rect, Vec2},
 };
 use zen::{graphics::gfx::GFX_TILE_WIDTH, super_metroid::tileset::tileset_size};
 
@@ -21,7 +21,7 @@ impl Default for TileTableEditor {
 }
 
 impl TileTableEditor {
-    pub fn ui(&mut self, ui: &mut Ui, widget_size: Vec2) -> Response {
+    pub fn ui(&mut self, ui: &mut Ui, widget_size: Vec2) -> (Response, Rect) {
         self.editor
             .ui(ui, tileset_size(), SELECTION_SIZE, widget_size)
     }

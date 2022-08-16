@@ -1,6 +1,6 @@
 use eframe::{
     egui::{self, color, color_picker, containers, Context, Id, Response, Ui},
-    epaint::{Color32, Vec2},
+    epaint::{Color32, Rect, Vec2},
 };
 use zen::graphics::{
     self,
@@ -30,10 +30,15 @@ impl Default for PaletteEditor {
 }
 
 impl PaletteEditor {
-    pub fn ui(&mut self, ui: &mut Ui, palette: &mut Palette, widget_size: Vec2) -> Response {
-        let mut response = self
-            .editor
-            .ui(ui, PALETTE_SIZE, SELECTION_SIZE, widget_size);
+    pub fn ui(
+        &mut self,
+        ui: &mut Ui,
+        palette: &mut Palette,
+        widget_size: Vec2,
+    ) -> (Response, Rect) {
+        let (mut response, widget_rect) =
+            self.editor
+                .ui(ui, PALETTE_SIZE, SELECTION_SIZE, widget_size);
 
         // Open a color picker and select the color.
         if response.secondary_clicked() {
@@ -71,7 +76,7 @@ impl PaletteEditor {
             }
         };
 
-        response
+        (response, widget_rect)
     }
 
     fn ui_color_picker(&mut self, ui: &mut egui::Ui, response: &mut egui::Response) {
