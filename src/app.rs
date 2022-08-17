@@ -139,7 +139,6 @@ impl ZenSM {
 
                 self.graphics.ui(
                     ui,
-                    &gfx,
                     Vec2 {
                         x: 1.5 * x as f32,
                         y: 1.5 * y as f32,
@@ -303,7 +302,7 @@ impl ZenSM {
         let gfx = self
             .sm
             .gfx_with_cre(self.sm.tilesets[state.tileset as usize].graphic as usize);
-        self.graphics.editor.load_texture(
+        self.graphics.texture.load_texture(
             ctx,
             gfx.to_indexed_colors()
                 .into_iter()
@@ -320,7 +319,7 @@ impl ZenSM {
 
     fn reload_tile_table_texture(&mut self, ctx: &Context) {
         let state = self.sm.states[&self.selected_state];
-        self.tiletable.editor.load_texture(
+        self.tiletable.texture.load_texture(
             ctx,
             tileset_to_colors(
                 &self.sm.tile_table_with_cre(
@@ -344,7 +343,7 @@ impl ZenSM {
         let size = room.size_in_pixels();
         let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
 
-        self.level.editor.load_texture(ctx, colors, size);
+        self.level.gfx_layer.load_texture(ctx, colors, size);
         self.level.set_size(ctx, size);
 
         let bts_icons =
@@ -362,7 +361,7 @@ impl ZenSM {
         let [x_blocks, _] = room.size_in_blocks();
         for (i, bts_icon) in bts_icons.enumerate() {
             if let Some(bts_icon) = bts_icon {
-                self.level.bts_texture.as_mut().unwrap().set_partial(
+                self.level.bts_layer.texture.as_mut().unwrap().set_partial(
                     [(i % x_blocks) * BLOCK_SIZE, (i / x_blocks) * BLOCK_SIZE],
                     bts_icon.clone(),
                     TextureFilter::Nearest,

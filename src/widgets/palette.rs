@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{self, color, color_picker, containers, Context, Id, Response, Ui},
+    egui::{self, color, color_picker, containers, Context, Id, Response, Sense, Ui},
     epaint::{Color32, Rect, Vec2},
 };
 use zen::graphics::{
@@ -8,13 +8,14 @@ use zen::graphics::{
     Palette, Rgb888,
 };
 
-use super::editor::Editor;
+use super::helpers::{selection::Selection, texture::Texture};
 
 const PALETTE_SIZE: [usize; 2] = [COLORS_BY_SUB_PALETTE, NUMBER_OF_SUB_PALETTES];
 const SELECTION_SIZE: [f32; 2] = [1.0, 1.0];
 
 pub struct PaletteEditor {
-    pub editor: Editor,
+    pub texture: Texture,
+    selection: Selection,
     color_edit_popup_id: Id, // ID for the Color Picker Popup.
     editing_color: Color32,  // Store the color being edited by the Color Picker Popup.
 }
@@ -22,7 +23,11 @@ pub struct PaletteEditor {
 impl Default for PaletteEditor {
     fn default() -> Self {
         Self {
-            editor: Editor::new("PaletteEditor".to_string()),
+            texture: Texture::new("PaletteEditor".to_string()),
+            selection: Selection::new(
+                [PALETTE_SIZE[0] as f32, PALETTE_SIZE[1] as f32],
+                SELECTION_SIZE,
+            ),
             color_edit_popup_id: Id::new("palette_color_popup_id"),
             editing_color: Color32::default(),
         }
@@ -36,13 +41,15 @@ impl PaletteEditor {
         palette: &mut Palette,
         widget_size: Vec2,
     ) -> (Response, Rect) {
-        let (mut response, widget_rect) =
-            self.editor
-                .ui(ui, PALETTE_SIZE, SELECTION_SIZE, widget_size);
+        let (widget_rect, mut widget_response) =
+            ui.allocate_exact_size(widget_size, Sense::click());
+
+        self.texture.ui(ui, widget_rect);
+        self.selection.ui(ui, widget_rect, &widget_response);
 
         // Open a color picker and select the color.
-        if response.secondary_clicked() {
-            let selected = self.editor.selected.unwrap();
+        if widget_response.secondary_clicked() {
+            let selected = self.selection.position.unwrap();
 
             let palette_color: graphics::Rgb888 =
                 palette.sub_palettes[selected.y as usize].colors[selected.x as usize].into();
@@ -52,7 +59,7 @@ impl PaletteEditor {
 
             // Position the color picker popup at the click position.
             egui::Area::new(self.color_edit_popup_id)
-                .current_pos(response.interact_pointer_pos().unwrap())
+                .current_pos(widget_response.interact_pointer_pos().unwrap())
                 .show(ui.ctx(), |_ui| {});
 
             if !ui.memory().is_popup_open(self.color_edit_popup_id) {
@@ -62,9 +69,9 @@ impl PaletteEditor {
 
         // Color picker is open.
         if ui.memory().is_popup_open(self.color_edit_popup_id) {
-            self.ui_color_picker(ui, &mut response);
-            if response.changed() {
-                if let Some(selected_index) = self.editor.selected {
+            self.ui_color_picker(ui, &mut widget_response);
+            if widget_response.changed() {
+                if let Some(selected_index) = self.selection.position {
                     palette.sub_palettes[selected_index.y as usize].colors
                         [selected_index.x as usize] = graphics::Rgb888 {
                         r: self.editing_color.r(),
@@ -76,7 +83,7 @@ impl PaletteEditor {
             }
         };
 
-        (response, widget_rect)
+        (widget_response, widget_rect)
     }
 
     fn ui_color_picker(&mut self, ui: &mut egui::Ui, response: &mut egui::Response) {
@@ -102,11 +109,11 @@ impl PaletteEditor {
                 || area_response.response.clicked_elsewhere())
         {
             ui.memory().close_popup();
-            self.editor.selected = None;
+            self.selection.position = None;
         }
     }
 
     pub fn load_texture(&mut self, ctx: &Context, colors: Vec<Rgb888>) {
-        self.editor.load_texture(ctx, colors, PALETTE_SIZE);
+        self.texture.load_texture(ctx, colors, PALETTE_SIZE);
     }
 }

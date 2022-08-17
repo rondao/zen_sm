@@ -1,5 +1,5 @@
-mod editor;
 mod graphics;
+mod helpers;
 mod level;
 mod palette;
 mod tiletable;

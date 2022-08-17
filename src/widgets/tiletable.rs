@@ -1,28 +1,29 @@
 use eframe::{
-    egui::{Response, Ui},
-    epaint::{Rect, Vec2},
+    egui::{Sense, Ui},
+    epaint::Vec2,
 };
-use zen::{graphics::gfx::GFX_TILE_WIDTH, super_metroid::tileset::tileset_size};
+// use zen::graphics::gfx::GFX_TILE_WIDTH;
 
-use super::editor::Editor;
+use super::helpers::texture::Texture;
 
-const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
+// const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
 pub struct TileTableEditor {
-    pub editor: Editor,
+    pub texture: Texture,
 }
 
 impl Default for TileTableEditor {
     fn default() -> Self {
         Self {
-            editor: Editor::new("TileTableEditor".to_string()),
+            texture: Texture::new("TileTableEditor".to_string()),
         }
     }
 }
 
 impl TileTableEditor {
-    pub fn ui(&mut self, ui: &mut Ui, widget_size: Vec2) -> (Response, Rect) {
-        self.editor
-            .ui(ui, tileset_size(), SELECTION_SIZE, widget_size)
+    pub fn ui(&mut self, ui: &mut Ui, widget_size: Vec2) {
+        let (widget_rect, _) =
+            ui.allocate_exact_size(widget_size, Sense::focusable_noninteractive());
+        self.texture.ui(ui, widget_rect);
     }
 }

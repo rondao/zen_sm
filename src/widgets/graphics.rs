@@ -1,27 +1,29 @@
 use eframe::{
-    egui::{Response, Ui},
-    epaint::{Rect, Vec2},
+    egui::{Sense, Ui},
+    epaint::Vec2,
 };
-use zen::graphics::{gfx::GFX_TILE_WIDTH, Gfx};
+// use zen::graphics::gfx::GFX_TILE_WIDTH;
 
-use super::editor::Editor;
+use super::helpers::texture::Texture;
 
-const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
+// const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
 pub struct GraphicsEditor {
-    pub editor: Editor,
+    pub texture: Texture,
 }
 
 impl Default for GraphicsEditor {
     fn default() -> Self {
         Self {
-            editor: Editor::new("GraphicsEditor".to_string()),
+            texture: Texture::new("GraphicsEditor".to_string()),
         }
     }
 }
 
 impl GraphicsEditor {
-    pub fn ui(&mut self, ui: &mut Ui, gfx: &Gfx, widget_size: Vec2) -> (Response, Rect) {
-        self.editor.ui(ui, gfx.size(), SELECTION_SIZE, widget_size)
+    pub fn ui(&mut self, ui: &mut Ui, widget_size: Vec2) {
+        let (widget_rect, _) =
+            ui.allocate_exact_size(widget_size, Sense::focusable_noninteractive());
+        self.texture.ui(ui, widget_rect);
     }
 }

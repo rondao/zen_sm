@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use eframe::{
-    egui::{Context, Image, Response, TextureFilter, Ui},
-    epaint::{ColorImage, Rect, TextureHandle, Vec2},
+    egui::{Context, Response, Sense, TextureFilter, Ui},
+    epaint::{ColorImage, Rect, Vec2},
 };
-use zen::{graphics::gfx::GFX_TILE_WIDTH, super_metroid::room::Room};
+use zen::super_metroid::room::Room;
 
-use super::editor::Editor;
+use super::helpers::texture::Texture;
 
-const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
+// const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
 #[derive(Default, Debug, Hash, Eq, PartialEq)]
 pub struct BtsTile {
@@ -17,8 +17,8 @@ pub struct BtsTile {
 }
 
 pub struct LevelEditor {
-    pub editor: Editor,
-    pub bts_texture: Option<TextureHandle>,
+    pub gfx_layer: Texture,
+    pub bts_layer: Texture,
     pub bts_icons: HashMap<BtsTile, ColorImage>,
     draw_bts: bool,
 }
@@ -26,8 +26,8 @@ pub struct LevelEditor {
 impl Default for LevelEditor {
     fn default() -> Self {
         Self {
-            editor: Editor::new("LevelEditor".to_string()),
-            bts_texture: None,
+            gfx_layer: Texture::new("Layer01_LevelEditor".to_string()),
+            bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
             bts_icons: load_bts_icons(),
             draw_bts: true,
         }
@@ -36,16 +36,16 @@ impl Default for LevelEditor {
 
 impl LevelEditor {
     pub fn ui(&mut self, ui: &mut Ui, room: &Room) -> (Response, Rect) {
-        let size = room.size_in_pixels();
-        let (response, widget_rect) = self.editor.ui(
-            ui,
-            size,
-            SELECTION_SIZE,
+        let widget_size = room.size_in_pixels();
+
+        let (widget_rect, widget_response) = ui.allocate_exact_size(
             Vec2 {
-                x: size[0] as f32,
-                y: size[1] as f32,
+                x: widget_size[0] as f32,
+                y: widget_size[1] as f32,
             },
+            Sense::click(),
         );
+        self.gfx_layer.ui(ui, widget_rect);
 
         for event in &ui.input().events {
             match event {
@@ -59,17 +59,14 @@ impl LevelEditor {
         }
 
         if self.draw_bts {
-            ui.put(
-                widget_rect,
-                Image::new(self.bts_texture.as_ref().unwrap(), widget_rect.size()),
-            );
+            self.bts_layer.ui(ui, widget_rect);
         }
 
-        (response, widget_rect)
+        (widget_response, widget_rect)
     }
 
     pub fn set_size(&mut self, ctx: &Context, size: [usize; 2]) {
-        self.bts_texture = Some(ctx.load_texture(
+        self.bts_layer.texture = Some(ctx.load_texture(
             "BTS Texture",
             ColorImage::from_rgba_unmultiplied(size, &vec![0; size[0] * size[1] * 4]),
             TextureFilter::Nearest,
