@@ -23,6 +23,7 @@ pub struct ZenSM {
     graphics: widgets::GraphicsEditor,
     tiletable: widgets::TileTableEditor,
     level: widgets::LevelEditor,
+    sorted_room_list: Vec<usize>,
     selected_room: usize,
     selected_state: usize,
 }
@@ -93,8 +94,11 @@ impl ZenSM {
         if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
             self.sm = sm;
 
-            let (room_address, room) = self.sm.rooms.iter().next().unwrap();
-            self.selected_room = *room_address;
+            self.sorted_room_list = self.sm.rooms.keys().map(|value| *value).collect();
+            self.sorted_room_list.sort();
+
+            let room = &self.sm.rooms[&self.sorted_room_list[0]];
+            self.selected_room = self.sorted_room_list[0];
             self.selected_state = room.state_conditions[0].state_address as usize;
         }
     }
@@ -213,7 +217,7 @@ impl ZenSM {
     fn draw_room_selector(&mut self, ui: &mut Ui) {
         if !self.sm.rooms.is_empty() {
             if let Some(selection) =
-                ZenSM::draw_combo_box(ui, "Room", self.sm.rooms.keys(), self.selected_room)
+                ZenSM::draw_combo_box(ui, "Room", self.sorted_room_list.iter(), self.selected_room)
             {
                 self.selected_room = selection;
                 let room = &self.sm.rooms[&self.selected_room];
