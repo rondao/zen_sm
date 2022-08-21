@@ -6,7 +6,7 @@ use eframe::{
 };
 use zen::super_metroid::room::Room;
 
-use super::helpers::texture::Texture;
+use super::helpers::{texture::Texture, zoom_area::ZoomArea};
 
 // const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
@@ -17,6 +17,7 @@ pub struct BtsTile {
 }
 
 pub struct LevelEditor {
+    zoomable_area: ZoomArea,
     pub gfx_layer: Texture,
     pub bts_layer: Texture,
     pub bts_icons: HashMap<BtsTile, ColorImage>,
@@ -26,6 +27,7 @@ pub struct LevelEditor {
 impl Default for LevelEditor {
     fn default() -> Self {
         Self {
+            zoomable_area: ZoomArea::default(),
             gfx_layer: Texture::new("Layer01_LevelEditor".to_string()),
             bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
             bts_icons: load_bts_icons(),
@@ -38,7 +40,8 @@ impl LevelEditor {
     pub fn ui(&mut self, ui: &mut Ui, room: &Room) -> (Response, Rect) {
         let widget_size = room.size_in_pixels();
 
-        let (widget_rect, widget_response) = ui.allocate_exact_size(
+        let (widget_rect, widget_response) = self.zoomable_area.create(
+            ui,
             Vec2 {
                 x: widget_size[0] as f32,
                 y: widget_size[1] as f32,

@@ -144,8 +144,8 @@ impl ZenSM {
                 self.graphics.ui(
                     ui,
                     Vec2 {
-                        x: 1.5 * x as f32,
-                        y: 1.5 * y as f32,
+                        x: x as f32,
+                        y: y as f32,
                     },
                 );
             });
@@ -159,8 +159,8 @@ impl ZenSM {
                 self.tiletable.ui(
                     ui,
                     Vec2 {
-                        x: 1.5 * size[0] as f32,
-                        y: 1.5 * size[1] as f32,
+                        x: size[0] as f32,
+                        y: size[1] as f32,
                     },
                 );
             });
