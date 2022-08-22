@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use futures::Future;
 
 use crate::widgets::{self};
-use eframe::egui::{self, Context, TextureFilter, Ui, Vec2};
+use eframe::egui::{self, Context, TextureFilter, Ui};
 
 use zen::super_metroid::{
     self,
@@ -79,7 +79,7 @@ impl eframe::App for ZenSM {
                     egui::TopBottomPanel::top("Tileset").show_inside(ui, |ui| {
                         self.draw_tileset_selector(ui, tileset_idx as usize);
                     });
-                    self.draw_graphics(ui, tileset.graphic as usize);
+                    self.draw_graphics(ui);
                 });
 
             egui::CentralPanel::default().show(ctx, |ui| {
@@ -123,11 +123,9 @@ impl ZenSM {
     fn draw_palette(&mut self, ui: &mut Ui, palette: usize) {
         if !self.sm.palettes.is_empty() {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let (response, _) = self.palette.ui(
-                    ui,
-                    self.sm.palettes.get_mut(&palette).unwrap(),
-                    Vec2 { x: 300.0, y: 150.0 },
-                );
+                let (response, _) = self
+                    .palette
+                    .ui(ui, self.sm.palettes.get_mut(&palette).unwrap());
                 if response.changed() {
                     self.reload_textures(ui.ctx());
                 }
@@ -135,19 +133,10 @@ impl ZenSM {
         }
     }
 
-    fn draw_graphics(&mut self, ui: &mut Ui, graphic: usize) {
+    fn draw_graphics(&mut self, ui: &mut Ui) {
         if !self.sm.graphics.is_empty() {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                let gfx = self.sm.gfx_with_cre(graphic);
-                let [x, y] = gfx.size();
-
-                self.graphics.ui(
-                    ui,
-                    Vec2 {
-                        x: x as f32,
-                        y: y as f32,
-                    },
-                );
+                self.graphics.ui(ui);
             });
         }
     }
@@ -155,14 +144,7 @@ impl ZenSM {
     fn draw_tile_table(&mut self, ui: &mut Ui) {
         if !self.sm.tile_tables.is_empty() {
             egui::ScrollArea::both().show(ui, |ui| {
-                let size = super_metroid::tileset::tileset_size();
-                self.tiletable.ui(
-                    ui,
-                    Vec2 {
-                        x: size[0] as f32,
-                        y: size[1] as f32,
-                    },
-                );
+                self.tiletable.ui(ui);
             });
         }
     }
@@ -246,8 +228,7 @@ impl ZenSM {
     fn draw_level(&mut self, ui: &mut Ui) {
         if !self.sm.states.is_empty() {
             egui::ScrollArea::both().show(ui, |ui| {
-                let room = &self.sm.rooms[&self.selected_room];
-                self.level.ui(ui, &room);
+                self.level.ui(ui);
             });
         }
     }

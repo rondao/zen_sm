@@ -1,7 +1,4 @@
-use eframe::{
-    egui::{Sense, Ui},
-    epaint::Vec2,
-};
+use eframe::egui::{Sense, Ui};
 // use zen::graphics::gfx::GFX_TILE_WIDTH;
 
 use super::helpers::{texture::Texture, zoom_area::ZoomArea};
@@ -23,10 +20,10 @@ impl Default for GraphicsEditor {
 }
 
 impl GraphicsEditor {
-    pub fn ui(&mut self, ui: &mut Ui, widget_size: Vec2) {
+    pub fn ui(&mut self, ui: &mut Ui) {
         let (widget_rect, _) =
             self.zoomable_area
-                .create(ui, widget_size, Sense::focusable_noninteractive());
+                .create(ui, self.texture.size, Sense::focusable_noninteractive());
         self.texture.ui(ui, widget_rect);
     }
 }

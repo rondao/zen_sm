@@ -2,9 +2,8 @@ use std::collections::HashMap;
 
 use eframe::{
     egui::{Context, Response, Sense, TextureFilter, Ui},
-    epaint::{ColorImage, Rect, Vec2},
+    epaint::{ColorImage, Rect},
 };
-use zen::super_metroid::room::Room;
 
 use super::helpers::{texture::Texture, zoom_area::ZoomArea};
 
@@ -37,17 +36,10 @@ impl Default for LevelEditor {
 }
 
 impl LevelEditor {
-    pub fn ui(&mut self, ui: &mut Ui, room: &Room) -> (Response, Rect) {
-        let widget_size = room.size_in_pixels();
-
-        let (widget_rect, widget_response) = self.zoomable_area.create(
-            ui,
-            Vec2 {
-                x: widget_size[0] as f32,
-                y: widget_size[1] as f32,
-            },
-            Sense::click(),
-        );
+    pub fn ui(&mut self, ui: &mut Ui) -> (Response, Rect) {
+        let (widget_rect, widget_response) =
+            self.zoomable_area
+                .create(ui, self.gfx_layer.size, Sense::click());
         self.gfx_layer.ui(ui, widget_rect);
 
         for event in &ui.input().events {

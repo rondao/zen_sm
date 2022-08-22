@@ -35,14 +35,9 @@ impl Default for PaletteEditor {
 }
 
 impl PaletteEditor {
-    pub fn ui(
-        &mut self,
-        ui: &mut Ui,
-        palette: &mut Palette,
-        widget_size: Vec2,
-    ) -> (Response, Rect) {
+    pub fn ui(&mut self, ui: &mut Ui, palette: &mut Palette) -> (Response, Rect) {
         let (widget_rect, mut widget_response) =
-            ui.allocate_exact_size(widget_size, Sense::click());
+            ui.allocate_exact_size(Vec2 { x: 300.0, y: 150.0 }, Sense::click());
 
         self.texture.ui(ui, widget_rect);
         self.selection.ui(ui, widget_rect, &widget_response);
