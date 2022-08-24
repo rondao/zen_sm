@@ -13,7 +13,7 @@ use zen::super_metroid::{
 };
 
 lazy_static::lazy_static! {
-    static ref SELECTED_FILE_DATA: Mutex<Option<Vec<u8>>> = Mutex::new(None);
+    static ref SELECTED_FILE_DATA: Mutex<Option<Vec<u8>>> = Mutex::new(std::fs::read("/home/rondao/roms/snes/SuperMetroid.smc").ok());
 }
 
 #[derive(Default)]
