@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 
 use eframe::{
-    egui::{Context, Response, Sense, TextureFilter, Ui},
+    egui::{Context, Response, TextureFilter, Ui},
     epaint::{ColorImage, Rect},
 };
+use zen::graphics::gfx::GFX_TILE_WIDTH;
 
-use super::helpers::{texture::Texture, zoom_area::ZoomArea};
+use super::helpers::{drag_area::DragArea, selection::Selection, texture::Texture};
 
-// const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
+const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
 #[derive(Default, Debug, Hash, Eq, PartialEq)]
 pub struct BtsTile {
@@ -16,7 +17,8 @@ pub struct BtsTile {
 }
 
 pub struct LevelEditor {
-    zoomable_area: ZoomArea,
+    drag_area: DragArea,
+    selection: Selection,
     pub gfx_layer: Texture,
     pub bts_layer: Texture,
     pub bts_icons: HashMap<BtsTile, ColorImage>,
@@ -26,7 +28,8 @@ pub struct LevelEditor {
 impl Default for LevelEditor {
     fn default() -> Self {
         Self {
-            zoomable_area: ZoomArea::default(),
+            drag_area: DragArea::default(),
+            selection: Selection::new([1.0, 1.0], SELECTION_SIZE),
             gfx_layer: Texture::new("Layer01_LevelEditor".to_string()),
             bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
             bts_icons: load_bts_icons(),
@@ -37,9 +40,8 @@ impl Default for LevelEditor {
 
 impl LevelEditor {
     pub fn ui(&mut self, ui: &mut Ui) -> (Response, Rect) {
-        let (widget_rect, widget_response) =
-            self.zoomable_area
-                .create(ui, self.gfx_layer.size, Sense::click());
+        let (widget_rect, widget_response) = self.drag_area.create(ui, self.gfx_layer.size);
+
         self.gfx_layer.ui(ui, widget_rect);
 
         for event in &ui.input().events {
@@ -57,10 +59,13 @@ impl LevelEditor {
             self.bts_layer.ui(ui, widget_rect);
         }
 
+        self.selection.ui(ui, widget_rect, &widget_response);
+
         (widget_response, widget_rect)
     }
 
     pub fn set_size(&mut self, ctx: &Context, size: [usize; 2]) {
+        self.selection.widget_size = [size[0] as f32, size[1] as f32];
         self.bts_layer.texture = Some(ctx.load_texture(
             "BTS Texture",
             ColorImage::from_rgba_unmultiplied(size, &vec![0; size[0] * size[1] * 4]),

@@ -44,7 +44,7 @@ impl PaletteEditor {
 
         // Open a color picker and select the color.
         if widget_response.secondary_clicked() {
-            let selected = self.selection.position.unwrap();
+            let selected = self.selection.position().unwrap();
 
             let palette_color: graphics::Rgb888 =
                 palette.sub_palettes[selected.y as usize].colors[selected.x as usize].into();
@@ -66,7 +66,7 @@ impl PaletteEditor {
         if ui.memory().is_popup_open(self.color_edit_popup_id) {
             self.ui_color_picker(ui, &mut widget_response);
             if widget_response.changed() {
-                if let Some(selected_index) = self.selection.position {
+                if let Some(selected_index) = self.selection.position() {
                     palette.sub_palettes[selected_index.y as usize].colors
                         [selected_index.x as usize] = graphics::Rgb888 {
                         r: self.editing_color.r(),
@@ -104,7 +104,7 @@ impl PaletteEditor {
                 || area_response.response.clicked_elsewhere())
         {
             ui.memory().close_popup();
-            self.selection.position = None;
+            self.selection.selection = None;
         }
     }
 
