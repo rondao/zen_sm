@@ -19,11 +19,16 @@ impl Selection {
         }
     }
 
-    pub fn ui(&mut self, ui: &mut Ui, widget_rect: Rect, widget_response: &Response) {
+    pub fn ui(
+        &mut self,
+        ui: &mut Ui,
+        widget_rect: Rect,
+        widget_response: &Response,
+    ) -> Option<Rect> {
         // Pointer's screen to area transformations.
         let transform_area_to_screen = RectTransform::from_to(
             Rect::from_min_size(
-                Pos2 { x: 0.0, y: 0.0 },
+                Pos2::ZERO,
                 Vec2 {
                     x: self.widget_size[0] / self.selection_size[0],
                     y: self.widget_size[1] / self.selection_size[1],
@@ -33,10 +38,11 @@ impl Selection {
         );
         let transform_screen_to_area = transform_area_to_screen.inverse();
 
+        let mut in_screen_pos = Pos2::ZERO;
         // Handle only positions inside the Widget.
         let hover_selection = widget_response.hover_pos().and_then(|hover_pos| {
             let hover_position = (transform_screen_to_area * hover_pos).floor();
-            let in_screen_pos = transform_area_to_screen * hover_position;
+            in_screen_pos = transform_area_to_screen * hover_position;
 
             // Use epsilon to avoid out of bounds.
             widget_rect
@@ -62,12 +68,17 @@ impl Selection {
 
         // Draw a rectangle around the selection.
         let current_selection = self.selection.or(hover_selection);
-        if let Some(current_selection) = current_selection {
+        current_selection.and_then(|current_selection| {
             let transformed_selection = transform_area_to_screen.transform_rect(current_selection);
 
             let painter = ui.painter_at(widget_rect);
             painter.rect_stroke(transformed_selection, 1.0, Stroke::new(2.0, Color32::WHITE));
-        };
+
+            Some(Rect::from_min_size(
+                in_screen_pos,
+                transformed_selection.size(),
+            ))
+        })
     }
 
     pub fn position(&self) -> Option<Pos2> {

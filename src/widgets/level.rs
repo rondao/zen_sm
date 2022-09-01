@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use eframe::{
     egui::{Context, Response, TextureFilter, Ui},
-    epaint::{ColorImage, Rect},
+    epaint::{ColorImage, Rect, Vec2},
 };
 use zen::graphics::gfx::GFX_TILE_WIDTH;
 
@@ -23,6 +23,7 @@ pub struct LevelEditor {
     pub bts_layer: Texture,
     pub bts_icons: HashMap<BtsTile, ColorImage>,
     draw_bts: bool,
+    selected_texture: Texture,
 }
 
 impl Default for LevelEditor {
@@ -34,6 +35,7 @@ impl Default for LevelEditor {
             bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
             bts_icons: load_bts_icons(),
             draw_bts: true,
+            selected_texture: Texture::new("Selection_LevelEditor".to_string()),
         }
     }
 }
@@ -59,7 +61,24 @@ impl LevelEditor {
             self.bts_layer.ui(ui, widget_rect);
         }
 
-        self.selection.ui(ui, widget_rect, &widget_response);
+        let hover_selection = self.selection.ui(ui, widget_rect, &widget_response);
+
+        if widget_response.drag_started() {
+            self.selected_texture.texture = None;
+        } else if widget_response.drag_released() {
+            if let Some(mut selection) = self.selection.selection {
+                selection.max = (selection.max.to_vec2() * Vec2::from(SELECTION_SIZE)).to_pos2();
+                selection.min = (selection.min.to_vec2() * Vec2::from(SELECTION_SIZE)).to_pos2();
+
+                if let Some(selected_image) = self.gfx_layer.crop(selection) {
+                    self.selected_texture.load_image(ui.ctx(), selected_image);
+                }
+            }
+        } else if self.selected_texture.texture.is_some() {
+            if let Some(hover_selection) = hover_selection {
+                self.selected_texture.ui(ui, hover_selection);
+            }
+        }
 
         (widget_response, widget_rect)
     }
