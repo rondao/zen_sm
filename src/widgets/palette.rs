@@ -109,6 +109,6 @@ impl PaletteEditor {
     }
 
     pub fn load_texture(&mut self, ctx: &Context, colors: Vec<Rgb888>) {
-        self.texture.load_texture(ctx, colors, PALETTE_SIZE);
+        self.texture.load_colors(ctx, colors, PALETTE_SIZE);
     }
 }

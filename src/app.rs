@@ -287,7 +287,7 @@ impl ZenSM {
         let gfx = self
             .sm
             .gfx_with_cre(self.sm.tilesets[state.tileset as usize].graphic as usize);
-        self.graphics.texture.load_texture(
+        self.graphics.texture.load_colors(
             ctx,
             gfx.to_indexed_colors()
                 .into_iter()
@@ -304,7 +304,7 @@ impl ZenSM {
 
     fn reload_tile_table_texture(&mut self, ctx: &Context) {
         let state = self.sm.states[&self.selected_state];
-        self.tiletable.texture.load_texture(
+        self.tiletable.texture.load_colors(
             ctx,
             tileset_to_colors(
                 &self.sm.tile_table_with_cre(
@@ -328,7 +328,7 @@ impl ZenSM {
         let size = room.size_in_pixels();
         let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
 
-        self.level.gfx_layer.load_texture(ctx, colors, size);
+        self.level.gfx_layer.load_colors(ctx, colors, size);
         self.level.set_size(ctx, size);
 
         let bts_icons =
