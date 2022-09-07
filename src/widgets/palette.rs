@@ -8,14 +8,14 @@ use zen::graphics::{
     Palette, Rgb888,
 };
 
-use super::helpers::{selection::Selection, texture::Texture};
+use super::helpers::{selectable_area::SelectableArea, texture::Texture};
 
 const PALETTE_SIZE: [usize; 2] = [COLORS_BY_SUB_PALETTE, NUMBER_OF_SUB_PALETTES];
 const SELECTION_SIZE: [f32; 2] = [1.0, 1.0];
 
 pub struct PaletteEditor {
     pub texture: Texture,
-    selection: Selection,
+    selection: SelectableArea,
     color_edit_popup_id: Id, // ID for the Color Picker Popup.
     editing_color: Color32,  // Store the color being edited by the Color Picker Popup.
 }
@@ -24,7 +24,7 @@ impl Default for PaletteEditor {
     fn default() -> Self {
         Self {
             texture: Texture::new("PaletteEditor".to_string()),
-            selection: Selection::new(
+            selection: SelectableArea::new(
                 [PALETTE_SIZE[0] as f32, PALETTE_SIZE[1] as f32],
                 SELECTION_SIZE,
             ),
@@ -104,7 +104,7 @@ impl PaletteEditor {
                 || area_response.response.clicked_elsewhere())
         {
             ui.memory().close_popup();
-            self.selection.selection = None;
+            self.selection.unselect();
         }
     }
 
