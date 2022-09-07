@@ -7,9 +7,8 @@ use eframe::{
 use zen::graphics::gfx::GFX_TILE_WIDTH;
 
 use super::helpers::{
-    drag_area::DragArea,
-    selectable_area::{Selectable, SelectableArea},
-    texture::Texture,
+    drag_area::DragArea, painted_selectable_area::PaintedSelectableArea,
+    selectable_area::Selectable, texture::Texture,
 };
 
 const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
@@ -22,7 +21,7 @@ pub struct BtsTile {
 
 pub struct LevelEditor {
     drag_area: DragArea,
-    selection: SelectableArea,
+    selection: PaintedSelectableArea,
     pub gfx_layer: Texture,
     pub bts_layer: Texture,
     pub bts_icons: HashMap<BtsTile, ColorImage>,
@@ -34,7 +33,7 @@ impl Default for LevelEditor {
     fn default() -> Self {
         Self {
             drag_area: DragArea::default(),
-            selection: SelectableArea::new([1.0, 1.0], SELECTION_SIZE),
+            selection: PaintedSelectableArea::new([1.0, 1.0], SELECTION_SIZE),
             gfx_layer: Texture::new("Layer01_LevelEditor".to_string()),
             bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
             bts_icons: load_bts_icons(),
@@ -68,7 +67,8 @@ impl LevelEditor {
         let action = self.selection.ui(ui, widget_rect, &widget_response);
         if let Some(action) = action {
             match action {
-                Selectable::Hover(selection) => self.selected_texture.ui(ui, selection),
+                Selectable::SelectedHovering(selection) => self.selected_texture.ui(ui, selection),
+                Selectable::UnselectedHovering(_) => (),
                 Selectable::Selected(mut selection) => {
                     selection.max =
                         (selection.max.to_vec2() * Vec2::from(SELECTION_SIZE)).to_pos2();
