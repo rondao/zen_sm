@@ -6,7 +6,10 @@ use eframe::{
 };
 use zen::graphics::gfx::GFX_TILE_WIDTH;
 
-use super::helpers::{drag_area::DragArea, selection::Selection, texture::Texture};
+use super::helpers::{
+    drag_area::DragArea, painted_selectable_area::PaintedSelectableArea,
+    selectable_area::Selectable, texture::Texture,
+};
 
 const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
@@ -18,7 +21,7 @@ pub struct BtsTile {
 
 pub struct LevelEditor {
     drag_area: DragArea,
-    selection: Selection,
+    selection: PaintedSelectableArea,
     pub gfx_layer: Texture,
     pub bts_layer: Texture,
     pub bts_icons: HashMap<BtsTile, ColorImage>,
@@ -30,7 +33,7 @@ impl Default for LevelEditor {
     fn default() -> Self {
         Self {
             drag_area: DragArea::default(),
-            selection: Selection::new([1.0, 1.0], SELECTION_SIZE),
+            selection: PaintedSelectableArea::new([1.0, 1.0], SELECTION_SIZE),
             gfx_layer: Texture::new("Layer01_LevelEditor".to_string()),
             bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
             bts_icons: load_bts_icons(),
@@ -61,22 +64,22 @@ impl LevelEditor {
             self.bts_layer.ui(ui, widget_rect);
         }
 
-        let hover_selection = self.selection.ui(ui, widget_rect, &widget_response);
+        let action = self.selection.ui(ui, widget_rect, &widget_response);
+        if let Some(action) = action {
+            match action {
+                Selectable::SelectedHovering(selection) => self.selected_texture.ui(ui, selection),
+                Selectable::UnselectedHovering(_) => (),
+                Selectable::Selected(mut selection) => {
+                    selection.max =
+                        (selection.max.to_vec2() * Vec2::from(SELECTION_SIZE)).to_pos2();
+                    selection.min =
+                        (selection.min.to_vec2() * Vec2::from(SELECTION_SIZE)).to_pos2();
 
-        if widget_response.drag_started() {
-            self.selected_texture.texture = None;
-        } else if widget_response.drag_released() {
-            if let Some(mut selection) = self.selection.selection {
-                selection.max = (selection.max.to_vec2() * Vec2::from(SELECTION_SIZE)).to_pos2();
-                selection.min = (selection.min.to_vec2() * Vec2::from(SELECTION_SIZE)).to_pos2();
-
-                if let Some(selected_image) = self.gfx_layer.crop(selection) {
-                    self.selected_texture.load_image(ui.ctx(), selected_image);
+                    if let Some(selected_image) = self.gfx_layer.crop(selection) {
+                        self.selected_texture.load_image(ui.ctx(), selected_image);
+                    }
                 }
-            }
-        } else if self.selected_texture.texture.is_some() {
-            if let Some(hover_selection) = hover_selection {
-                self.selected_texture.ui(ui, hover_selection);
+                Selectable::Dragging(_) => (),
             }
         }
 
@@ -84,12 +87,17 @@ impl LevelEditor {
     }
 
     pub fn set_size(&mut self, ctx: &Context, size: [usize; 2]) {
-        self.selection.widget_size = [size[0] as f32, size[1] as f32];
+        self.selection
+            .set_sizes([size[0] as f32, size[1] as f32], SELECTION_SIZE);
         self.bts_layer.texture = Some(ctx.load_texture(
             "BTS Texture",
             ColorImage::from_rgba_unmultiplied(size, &vec![0; size[0] * size[1] * 4]),
             TextureFilter::Nearest,
         ));
+    }
+
+    pub fn clear_selection(&mut self) {
+        self.selected_texture.texture = None;
     }
 }
 

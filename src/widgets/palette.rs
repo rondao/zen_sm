@@ -8,14 +8,14 @@ use zen::graphics::{
     Palette, Rgb888,
 };
 
-use super::helpers::{selection::Selection, texture::Texture};
+use super::helpers::{painted_selectable_area::PaintedSelectableArea, texture::Texture};
 
 const PALETTE_SIZE: [usize; 2] = [COLORS_BY_SUB_PALETTE, NUMBER_OF_SUB_PALETTES];
 const SELECTION_SIZE: [f32; 2] = [1.0, 1.0];
 
 pub struct PaletteEditor {
     pub texture: Texture,
-    selection: Selection,
+    selectable_area: PaintedSelectableArea,
     color_edit_popup_id: Id, // ID for the Color Picker Popup.
     editing_color: Color32,  // Store the color being edited by the Color Picker Popup.
 }
@@ -24,7 +24,7 @@ impl Default for PaletteEditor {
     fn default() -> Self {
         Self {
             texture: Texture::new("PaletteEditor".to_string()),
-            selection: Selection::new(
+            selectable_area: PaintedSelectableArea::new(
                 [PALETTE_SIZE[0] as f32, PALETTE_SIZE[1] as f32],
                 SELECTION_SIZE,
             ),
@@ -40,11 +40,11 @@ impl PaletteEditor {
             ui.allocate_exact_size(Vec2 { x: 300.0, y: 150.0 }, Sense::click());
 
         self.texture.ui(ui, widget_rect);
-        self.selection.ui(ui, widget_rect, &widget_response);
+        self.selectable_area.ui(ui, widget_rect, &widget_response);
 
         // Open a color picker and select the color.
         if widget_response.secondary_clicked() {
-            let selected = self.selection.position().unwrap();
+            let selected = self.selectable_area.position().unwrap();
 
             let palette_color: graphics::Rgb888 =
                 palette.sub_palettes[selected.y as usize].colors[selected.x as usize].into();
@@ -66,7 +66,7 @@ impl PaletteEditor {
         if ui.memory().is_popup_open(self.color_edit_popup_id) {
             self.ui_color_picker(ui, &mut widget_response);
             if widget_response.changed() {
-                if let Some(selected_index) = self.selection.position() {
+                if let Some(selected_index) = self.selectable_area.position() {
                     palette.sub_palettes[selected_index.y as usize].colors
                         [selected_index.x as usize] = graphics::Rgb888 {
                         r: self.editing_color.r(),
@@ -104,7 +104,7 @@ impl PaletteEditor {
                 || area_response.response.clicked_elsewhere())
         {
             ui.memory().close_popup();
-            self.selection.selection = None;
+            self.selectable_area.unselect();
         }
     }
 

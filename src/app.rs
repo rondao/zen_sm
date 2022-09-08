@@ -328,6 +328,7 @@ impl ZenSM {
         let size = room.size_in_pixels();
         let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
 
+        self.level.clear_selection();
         self.level.gfx_layer.load_colors(ctx, colors, size);
         self.level.set_size(ctx, size);
 
