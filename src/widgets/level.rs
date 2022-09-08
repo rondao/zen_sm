@@ -95,6 +95,10 @@ impl LevelEditor {
             TextureFilter::Nearest,
         ));
     }
+
+    pub fn clear_selection(&mut self) {
+        self.selected_texture.texture = None;
+    }
 }
 
 fn load_bts_icons() -> HashMap<BtsTile, ColorImage> {
