@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use eframe::{
     egui::{Context, Response, TextureFilter, Ui},
-    epaint::{ColorImage, Rect, Vec2},
+    epaint::{ColorImage, Pos2, Rect, Vec2},
 };
 use zen::graphics::gfx::GFX_TILE_WIDTH;
 
@@ -29,6 +29,11 @@ pub struct LevelEditor {
     selected_texture: Texture,
 }
 
+pub enum Command {
+    Selection(Rect),
+    Apply(Pos2),
+}
+
 impl Default for LevelEditor {
     fn default() -> Self {
         Self {
@@ -44,7 +49,7 @@ impl Default for LevelEditor {
 }
 
 impl LevelEditor {
-    pub fn ui(&mut self, ui: &mut Ui) -> (Response, Rect) {
+    pub fn ui(&mut self, ui: &mut Ui) -> (Response, Rect, Option<Command>) {
         let (widget_rect, widget_response) = self.drag_area.create(ui, self.gfx_layer.size);
 
         self.gfx_layer.ui(ui, widget_rect);
@@ -65,10 +70,9 @@ impl LevelEditor {
         }
 
         let action = self.selection.ui(ui, widget_rect, &widget_response);
-        if let Some(action) = action {
+        if let Some(ref action) = action {
             match action {
-                Selectable::SelectedHovering(selection) => self.selected_texture.ui(ui, selection),
-                Selectable::UnselectedHovering(_) => (),
+                Selectable::SelectedHovering(selection) => self.selected_texture.ui(ui, *selection),
                 Selectable::Selected(mut selection) => {
                     selection.max =
                         (selection.max.to_vec2() * Vec2::from(SELECTION_SIZE)).to_pos2();
@@ -79,11 +83,19 @@ impl LevelEditor {
                         self.selected_texture.load_image(ui.ctx(), selected_image);
                     }
                 }
+                Selectable::UnselectedHovering(_) => (),
                 Selectable::Dragging(_) => (),
+                Selectable::Clicked(_) => (),
             }
         }
 
-        (widget_response, widget_rect)
+        let command = action.and_then(|action| match action {
+            Selectable::Selected(selection) => Some(Command::Selection(selection)),
+            Selectable::Clicked(position) => Some(Command::Apply(position)),
+            _ => None,
+        });
+
+        (widget_response, widget_rect, command)
     }
 
     pub fn set_size(&mut self, ctx: &Context, size: [usize; 2]) {
