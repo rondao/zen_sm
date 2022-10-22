@@ -83,9 +83,7 @@ impl LevelEditor {
                         self.selected_texture.load_image(ui.ctx(), selected_image);
                     }
                 }
-                Selectable::UnselectedHovering(_) => (),
-                Selectable::Dragging(_) => (),
-                Selectable::Clicked(_) => (),
+                _ => (),
             }
         }
 

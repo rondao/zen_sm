@@ -5,7 +5,7 @@ use futures::Future;
 use crate::widgets::{self, Command};
 use eframe::{
     egui::{self, Context, TextureFilter, Ui},
-    epaint::Rect,
+    epaint::{Pos2, Rect},
 };
 
 use zen::super_metroid::{
@@ -241,43 +241,45 @@ impl ZenSM {
                     }
                     Some(Command::Apply(position)) => {
                         if let Some(selection) = self.edit_selection {
-                            let room = &self.sm.rooms[&self.selected_room];
-                            let state = self.sm.states[&self.selected_state];
-                            let level = self
-                                .sm
-                                .levels
-                                .get_mut(&(state.level_address as usize))
-                                .unwrap();
-
-                            let mut selected_tiles: VecDeque<(Block, BtsBlock)> = VecDeque::new();
-                            for x in (selection.min.x as usize)..(selection.max.x as usize) {
-                                for y in (selection.min.y as usize)..(selection.max.y as usize) {
-                                    let index = x + y * room.size().0 * BLOCKS_PER_SCREEN;
-                                    selected_tiles
-                                        .push_back((level.layer1[index], level.bts[index]));
-                                }
-                            }
-
-                            let index_cursor_position = (position.x as usize)
-                                + (position.y as usize) * room.size().0 * BLOCKS_PER_SCREEN;
-                            for x in 0..(selection.max.x - selection.min.x) as usize {
-                                for y in 0..(selection.max.y - selection.min.y) as usize {
-                                    let index = index_cursor_position
-                                        + x
-                                        + y * room.size().0 * BLOCKS_PER_SCREEN;
-                                    if let Some((layer1_block, bts)) = selected_tiles.pop_front() {
-                                        level.layer1[index] = layer1_block;
-                                        level.bts[index] = bts;
-                                    }
-                                }
-                            }
-
+                            self.apply_edit_selection(selection, position);
                             self.reload_level_texture(ui.ctx());
                         }
                     }
                     None => (),
                 }
             });
+        }
+    }
+
+    fn apply_edit_selection(&mut self, selection: Rect, position: Pos2) {
+        let room = &self.sm.rooms[&self.selected_room];
+        let state = self.sm.states[&self.selected_state];
+        let level = self
+            .sm
+            .levels
+            .get_mut(&(state.level_address as usize))
+            .unwrap();
+
+        // Extract selected tiles data, to avoid overwriting them.
+        let mut selected_tiles: VecDeque<(Block, BtsBlock)> = VecDeque::new();
+        for x in (selection.min.x as usize)..(selection.max.x as usize) {
+            for y in (selection.min.y as usize)..(selection.max.y as usize) {
+                let index = x + y * room.size().0 * BLOCKS_PER_SCREEN;
+                selected_tiles.push_back((level.layer1[index], level.bts[index]));
+            }
+        }
+
+        // Apply them to the level, from the extracted tiles.
+        let index_cursor_position =
+            (position.x as usize) + (position.y as usize) * room.size().0 * BLOCKS_PER_SCREEN;
+        for x in 0..(selection.max.x - selection.min.x) as usize {
+            for y in 0..(selection.max.y - selection.min.y) as usize {
+                let index = index_cursor_position + x + y * room.size().0 * BLOCKS_PER_SCREEN;
+                if let Some((layer1_block, bts)) = selected_tiles.pop_front() {
+                    level.layer1[index] = layer1_block;
+                    level.bts[index] = bts;
+                }
+            }
         }
     }
 
