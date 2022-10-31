@@ -14,6 +14,7 @@ pub enum Selectable {
     UnselectedHovering(Rect),
     Dragging(Rect),
     Selected(Rect),
+    Clicked(Pos2),
 }
 
 impl SelectableArea {
@@ -60,6 +61,8 @@ impl SelectableArea {
             } else if widget_response.drag_released() {
                 self.selection
                     .and_then(|selection| Some(Selectable::Selected(selection)))
+            } else if widget_response.clicked() {
+                Some(Selectable::Clicked(pointer_selection))
             } else {
                 if self.selection.is_some() {
                     Some(Selectable::SelectedHovering(Rect::from_min_size(

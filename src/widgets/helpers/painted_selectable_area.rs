@@ -28,12 +28,13 @@ impl PaintedSelectableArea {
 
         if let Some(selection) = selection.borrow() {
             match selection {
-                Selectable::SelectedHovering(_) => (),
                 Selectable::UnselectedHovering(rect) => {
                     self.paint_selection(ui, widget_rect, *rect)
                 }
                 Selectable::Dragging(rect) => self.paint_selection(ui, widget_rect, *rect),
+                Selectable::SelectedHovering(_) => (),
                 Selectable::Selected(_) => (),
+                Selectable::Clicked(_) => (),
             }
         }
 

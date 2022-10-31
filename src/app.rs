@@ -1,12 +1,16 @@
-use std::sync::Mutex;
+use std::{collections::VecDeque, sync::Mutex};
 
 use futures::Future;
 
-use crate::widgets::{self};
-use eframe::egui::{self, Context, TextureFilter, Ui};
+use crate::widgets::{self, Command};
+use eframe::{
+    egui::{self, Context, TextureFilter, Ui},
+    epaint::{Pos2, Rect},
+};
 
 use zen::super_metroid::{
     self,
+    level_data::{Block, BtsBlock, BLOCKS_PER_SCREEN},
     tile_table::BLOCK_SIZE,
     tileset::{tileset_size, tileset_to_colors},
     SuperMetroid,
@@ -26,6 +30,7 @@ pub struct ZenSM {
     sorted_room_list: Vec<usize>,
     selected_room: usize,
     selected_state: usize,
+    edit_selection: Option<Rect>,
 }
 
 enum Menu {
@@ -228,8 +233,53 @@ impl ZenSM {
     fn draw_level(&mut self, ui: &mut Ui) {
         if !self.sm.states.is_empty() {
             egui::ScrollArea::both().show(ui, |ui| {
-                self.level.ui(ui);
+                let (_, _, command) = self.level.ui(ui);
+
+                match command {
+                    Some(Command::Selection(new_selection)) => {
+                        self.edit_selection = Some(new_selection)
+                    }
+                    Some(Command::Apply(position)) => {
+                        if let Some(selection) = self.edit_selection {
+                            self.apply_edit_selection(selection, position);
+                            self.reload_level_texture(ui.ctx());
+                        }
+                    }
+                    None => (),
+                }
             });
+        }
+    }
+
+    fn apply_edit_selection(&mut self, selection: Rect, position: Pos2) {
+        let room = &self.sm.rooms[&self.selected_room];
+        let state = self.sm.states[&self.selected_state];
+        let level = self
+            .sm
+            .levels
+            .get_mut(&(state.level_address as usize))
+            .unwrap();
+
+        // Extract selected tiles data, to avoid overwriting them.
+        let mut selected_tiles: VecDeque<(Block, BtsBlock)> = VecDeque::new();
+        for x in (selection.min.x as usize)..(selection.max.x as usize) {
+            for y in (selection.min.y as usize)..(selection.max.y as usize) {
+                let index = x + y * room.size().0 * BLOCKS_PER_SCREEN;
+                selected_tiles.push_back((level.layer1[index], level.bts[index]));
+            }
+        }
+
+        // Apply them to the level, from the extracted tiles.
+        let index_cursor_position =
+            (position.x as usize) + (position.y as usize) * room.size().0 * BLOCKS_PER_SCREEN;
+        for x in 0..(selection.max.x - selection.min.x) as usize {
+            for y in 0..(selection.max.y - selection.min.y) as usize {
+                let index = index_cursor_position + x + y * room.size().0 * BLOCKS_PER_SCREEN;
+                if let Some((layer1_block, bts)) = selected_tiles.pop_front() {
+                    level.layer1[index] = layer1_block;
+                    level.bts[index] = bts;
+                }
+            }
         }
     }
 
