@@ -242,7 +242,6 @@ impl ZenSM {
                     Some(Command::Apply(position)) => {
                         if let Some(selection) = self.edit_selection {
                             self.apply_edit_selection(selection, position);
-                            self.reload_level_texture(ui.ctx());
                         }
                     }
                     None => (),
@@ -279,6 +278,43 @@ impl ZenSM {
                     level.layer1[index] = layer1_block;
                     level.bts[index] = bts;
                 }
+            }
+        }
+
+        // Draw them onto texture.
+        if let Some(texture) = self.level.gfx_layer.texture.as_mut() {
+            if let Some(gfx_image) = self.level.gfx_layer.image.as_mut() {
+                let click_pixel_position = [
+                    position.x as usize * BLOCK_SIZE,
+                    position.y as usize * BLOCK_SIZE,
+                ];
+                let selection_pixel_position = [
+                    selection.min.x as usize * BLOCK_SIZE,
+                    selection.min.y as usize * BLOCK_SIZE,
+                ];
+
+                let screen_width_in_pixels = room.size().0 * BLOCKS_PER_SCREEN * BLOCK_SIZE;
+                let selection_width_in_pixels = (selection.width() as usize) * BLOCK_SIZE;
+
+                let selection_size_in_pixels = selection.area() as usize * BLOCK_SIZE * BLOCK_SIZE;
+                let selected_pixels: Vec<_> = (0..selection_size_in_pixels)
+                    .map(|index| {
+                        let x = selection_pixel_position[0] + (index % selection_width_in_pixels);
+                        let y = selection_pixel_position[1] * screen_width_in_pixels
+                            + (index / selection_width_in_pixels) * screen_width_in_pixels;
+
+                        gfx_image.pixels[x + y]
+                    })
+                    .collect();
+
+                for (index, pixel) in selected_pixels.iter().enumerate() {
+                    let x = click_pixel_position[0] + (index % selection_width_in_pixels);
+                    let y = click_pixel_position[1] * screen_width_in_pixels
+                        + (index / selection_width_in_pixels) * screen_width_in_pixels;
+                    gfx_image.pixels[x + y] = *pixel;
+                }
+
+                texture.set(gfx_image.clone(), TextureFilter::Nearest);
             }
         }
     }

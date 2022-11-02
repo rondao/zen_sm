@@ -8,7 +8,7 @@ pub struct Texture {
     name: String,
     pub texture: Option<TextureHandle>,
     pub size: Vec2,
-    image: Option<ColorImage>,
+    pub image: Option<ColorImage>,
 }
 
 impl Texture {
