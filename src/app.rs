@@ -94,6 +94,7 @@ impl eframe::App for ZenSM {
     }
 }
 
+// File manipulation.
 impl ZenSM {
     fn load_data_rom(&mut self, data: &Vec<u8>) {
         if let Ok(sm) = super_metroid::load_unheadered_rom(data.clone()) {
@@ -108,6 +109,159 @@ impl ZenSM {
         }
     }
 
+    fn load_from_file(&self) {
+        super::app::execute_async(async move {
+            if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
+                let file_data = file.read().await;
+                *SELECTED_FILE_DATA.lock().unwrap() = Some(file_data);
+            }
+        });
+    }
+
+    fn save_to_file(&mut self) {
+        self.sm.save_to_rom();
+        super::app::save_file(&self.sm.rom);
+    }
+}
+
+// Texture manipulation.
+impl ZenSM {
+    fn reload_textures(&mut self, ctx: &Context) {
+        let (_level_data, _tileset, palette, graphics, tile_table) = self
+            .sm
+            .get_state_data(&self.sm.states[&self.selected_state]);
+
+        self.palette.load_texture(ctx, palette.to_colors());
+        self.graphics.texture.load_colors(
+            ctx,
+            graphics
+                .to_indexed_colors()
+                .into_iter()
+                .map(|idx_color| palette.sub_palettes[0].colors[idx_color as usize].into())
+                .collect(),
+            graphics.size(),
+        );
+        self.tiletable.texture.load_colors(
+            ctx,
+            tileset_to_colors(&tile_table, palette, &graphics),
+            tileset_size(),
+        );
+
+        self.reload_level_texture(ctx);
+    }
+
+    fn reload_level_texture(&mut self, ctx: &Context) {
+        let room = &self.sm.rooms[&self.selected_room];
+        let (level_data, _, palette, graphics, tile_table) = self
+            .sm
+            .get_state_data(&self.sm.states[&self.selected_state]);
+
+        let size = room.size_in_pixels();
+        let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
+
+        self.level.clear_selection();
+        self.level.gfx_layer.load_colors(ctx, colors, size);
+        self.level.set_size(ctx, size);
+
+        let bts_icons =
+            level_data
+                .layer1
+                .iter()
+                .zip(level_data.bts.iter())
+                .map(|(block, bts_block)| {
+                    self.level.bts_icons.get(&widgets::BtsTile {
+                        block_type: block.block_type,
+                        bts_block: *bts_block,
+                    })
+                });
+
+        let [x_blocks, _] = room.size_in_blocks();
+        for (i, bts_icon) in bts_icons.enumerate() {
+            if let Some(bts_icon) = bts_icon {
+                self.level.bts_layer.texture.as_mut().unwrap().set_partial(
+                    [(i % x_blocks) * BLOCK_SIZE, (i / x_blocks) * BLOCK_SIZE],
+                    bts_icon.clone(),
+                    TextureFilter::Nearest,
+                );
+            }
+        }
+    }
+}
+
+// Data manipulation.
+impl ZenSM {
+    fn apply_edit_selection(&mut self, selection: Rect, position: Pos2) {
+        let room = &self.sm.rooms[&self.selected_room];
+        let state = self.sm.states[&self.selected_state];
+        let level = self
+            .sm
+            .levels
+            .get_mut(&(state.level_address as usize))
+            .unwrap();
+
+        // Extract selected tiles data, to avoid overwriting them.
+        let mut selected_tiles: VecDeque<(Block, BtsBlock)> = VecDeque::new();
+        for x in (selection.min.x as usize)..(selection.max.x as usize) {
+            for y in (selection.min.y as usize)..(selection.max.y as usize) {
+                let index = x + y * room.size().0 * BLOCKS_PER_SCREEN;
+                selected_tiles.push_back((level.layer1[index], level.bts[index]));
+            }
+        }
+
+        // Apply them to the level, from the extracted tiles.
+        let index_cursor_position =
+            (position.x as usize) + (position.y as usize) * room.size().0 * BLOCKS_PER_SCREEN;
+        for x in 0..(selection.max.x - selection.min.x) as usize {
+            for y in 0..(selection.max.y - selection.min.y) as usize {
+                let index = index_cursor_position + x + y * room.size().0 * BLOCKS_PER_SCREEN;
+                if let Some((layer1_block, bts)) = selected_tiles.pop_front() {
+                    level.layer1[index] = layer1_block;
+                    level.bts[index] = bts;
+                }
+            }
+        }
+
+        // Draw them onto texture.
+        if let Some(texture) = self.level.gfx_layer.texture.as_mut() {
+            if let Some(gfx_image) = self.level.gfx_layer.image.as_mut() {
+                let click_pixel_position = [
+                    position.x as usize * BLOCK_SIZE,
+                    position.y as usize * BLOCK_SIZE,
+                ];
+                let selection_pixel_position = [
+                    selection.min.x as usize * BLOCK_SIZE,
+                    selection.min.y as usize * BLOCK_SIZE,
+                ];
+
+                let screen_width_in_pixels = room.size().0 * BLOCKS_PER_SCREEN * BLOCK_SIZE;
+                let selection_width_in_pixels = (selection.width() as usize) * BLOCK_SIZE;
+
+                let selection_size_in_pixels = selection.area() as usize * BLOCK_SIZE * BLOCK_SIZE;
+                let selected_pixels: Vec<_> = (0..selection_size_in_pixels)
+                    .map(|index| {
+                        let x = selection_pixel_position[0] + (index % selection_width_in_pixels);
+                        let y = selection_pixel_position[1] * screen_width_in_pixels
+                            + (index / selection_width_in_pixels) * screen_width_in_pixels;
+
+                        gfx_image.pixels[x + y]
+                    })
+                    .collect();
+
+                for (index, pixel) in selected_pixels.iter().enumerate() {
+                    let x = click_pixel_position[0] + (index % selection_width_in_pixels);
+                    let y = click_pixel_position[1] * screen_width_in_pixels
+                        + (index / selection_width_in_pixels) * screen_width_in_pixels;
+                    gfx_image.pixels[x + y] = *pixel;
+                }
+
+                texture.set(gfx_image.clone(), TextureFilter::Nearest);
+            }
+        }
+    }
+}
+
+// Drawing functions.
+impl ZenSM {
     fn draw_menu(ui: &mut Ui) -> Menu {
         let mut selected_menu = Menu::None;
         egui::menu::bar(ui, |ui| {
@@ -250,75 +404,6 @@ impl ZenSM {
         }
     }
 
-    fn apply_edit_selection(&mut self, selection: Rect, position: Pos2) {
-        let room = &self.sm.rooms[&self.selected_room];
-        let state = self.sm.states[&self.selected_state];
-        let level = self
-            .sm
-            .levels
-            .get_mut(&(state.level_address as usize))
-            .unwrap();
-
-        // Extract selected tiles data, to avoid overwriting them.
-        let mut selected_tiles: VecDeque<(Block, BtsBlock)> = VecDeque::new();
-        for x in (selection.min.x as usize)..(selection.max.x as usize) {
-            for y in (selection.min.y as usize)..(selection.max.y as usize) {
-                let index = x + y * room.size().0 * BLOCKS_PER_SCREEN;
-                selected_tiles.push_back((level.layer1[index], level.bts[index]));
-            }
-        }
-
-        // Apply them to the level, from the extracted tiles.
-        let index_cursor_position =
-            (position.x as usize) + (position.y as usize) * room.size().0 * BLOCKS_PER_SCREEN;
-        for x in 0..(selection.max.x - selection.min.x) as usize {
-            for y in 0..(selection.max.y - selection.min.y) as usize {
-                let index = index_cursor_position + x + y * room.size().0 * BLOCKS_PER_SCREEN;
-                if let Some((layer1_block, bts)) = selected_tiles.pop_front() {
-                    level.layer1[index] = layer1_block;
-                    level.bts[index] = bts;
-                }
-            }
-        }
-
-        // Draw them onto texture.
-        if let Some(texture) = self.level.gfx_layer.texture.as_mut() {
-            if let Some(gfx_image) = self.level.gfx_layer.image.as_mut() {
-                let click_pixel_position = [
-                    position.x as usize * BLOCK_SIZE,
-                    position.y as usize * BLOCK_SIZE,
-                ];
-                let selection_pixel_position = [
-                    selection.min.x as usize * BLOCK_SIZE,
-                    selection.min.y as usize * BLOCK_SIZE,
-                ];
-
-                let screen_width_in_pixels = room.size().0 * BLOCKS_PER_SCREEN * BLOCK_SIZE;
-                let selection_width_in_pixels = (selection.width() as usize) * BLOCK_SIZE;
-
-                let selection_size_in_pixels = selection.area() as usize * BLOCK_SIZE * BLOCK_SIZE;
-                let selected_pixels: Vec<_> = (0..selection_size_in_pixels)
-                    .map(|index| {
-                        let x = selection_pixel_position[0] + (index % selection_width_in_pixels);
-                        let y = selection_pixel_position[1] * screen_width_in_pixels
-                            + (index / selection_width_in_pixels) * screen_width_in_pixels;
-
-                        gfx_image.pixels[x + y]
-                    })
-                    .collect();
-
-                for (index, pixel) in selected_pixels.iter().enumerate() {
-                    let x = click_pixel_position[0] + (index % selection_width_in_pixels);
-                    let y = click_pixel_position[1] * screen_width_in_pixels
-                        + (index / selection_width_in_pixels) * screen_width_in_pixels;
-                    gfx_image.pixels[x + y] = *pixel;
-                }
-
-                texture.set(gfx_image.clone(), TextureFilter::Nearest);
-            }
-        }
-    }
-
     fn draw_combo_box<'a>(
         ui: &mut egui::Ui,
         label: &str,
@@ -336,110 +421,6 @@ impl ZenSM {
             });
 
         (selection != usize::MAX && selection != selected).then(|| selection)
-    }
-
-    fn load_from_file(&self) {
-        super::app::execute_async(async move {
-            if let Some(file) = rfd::AsyncFileDialog::new().pick_file().await {
-                let file_data = file.read().await;
-                *SELECTED_FILE_DATA.lock().unwrap() = Some(file_data);
-            }
-        });
-    }
-
-    fn save_to_file(&mut self) {
-        self.sm.save_to_rom();
-        super::app::save_file(&self.sm.rom);
-    }
-
-    fn reload_textures(&mut self, ctx: &Context) {
-        self.reload_palette_texture(ctx);
-        self.reload_gfx_texture(ctx);
-        self.reload_tile_table_texture(ctx);
-        self.reload_level_texture(ctx);
-    }
-
-    fn reload_palette_texture(&mut self, ctx: &Context) {
-        let state = self.sm.states[&self.selected_state];
-        self.palette.load_texture(
-            ctx,
-            self.sm.palettes[&(self.sm.tilesets[state.tileset as usize].palette as usize)]
-                .to_colors(),
-        );
-    }
-
-    fn reload_gfx_texture(&mut self, ctx: &Context) {
-        let state = self.sm.states[&self.selected_state];
-        let gfx = self
-            .sm
-            .gfx_with_cre(self.sm.tilesets[state.tileset as usize].graphic as usize);
-        self.graphics.texture.load_colors(
-            ctx,
-            gfx.to_indexed_colors()
-                .into_iter()
-                .map(|idx_color| {
-                    self.sm.palettes[&(self.sm.tilesets[state.tileset as usize].palette as usize)]
-                        .sub_palettes[0]
-                        .colors[idx_color as usize]
-                        .into()
-                })
-                .collect(),
-            gfx.size(),
-        );
-    }
-
-    fn reload_tile_table_texture(&mut self, ctx: &Context) {
-        let state = self.sm.states[&self.selected_state];
-        self.tiletable.texture.load_colors(
-            ctx,
-            tileset_to_colors(
-                &self.sm.tile_table_with_cre(
-                    self.sm.tilesets[state.tileset as usize].tile_table as usize,
-                ),
-                &self.sm.palettes[&(self.sm.tilesets[state.tileset as usize].palette as usize)],
-                &self
-                    .sm
-                    .gfx_with_cre(self.sm.tilesets[state.tileset as usize].graphic as usize),
-            ),
-            tileset_size(),
-        );
-    }
-
-    fn reload_level_texture(&mut self, ctx: &Context) {
-        let room = &self.sm.rooms[&self.selected_room];
-        let (level_data, _, palette, graphics, tile_table) = self
-            .sm
-            .get_state_data(&self.sm.states[&self.selected_state]);
-
-        let size = room.size_in_pixels();
-        let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
-
-        self.level.clear_selection();
-        self.level.gfx_layer.load_colors(ctx, colors, size);
-        self.level.set_size(ctx, size);
-
-        let bts_icons =
-            level_data
-                .layer1
-                .iter()
-                .zip(level_data.bts.iter())
-                .map(|(block, bts_block)| {
-                    self.level.bts_icons.get(&widgets::BtsTile {
-                        block_type: block.block_type,
-                        bts_block: *bts_block,
-                    })
-                });
-
-        let [x_blocks, _] = room.size_in_blocks();
-        for (i, bts_icon) in bts_icons.enumerate() {
-            if let Some(bts_icon) = bts_icon {
-                self.level.bts_layer.texture.as_mut().unwrap().set_partial(
-                    [(i % x_blocks) * BLOCK_SIZE, (i / x_blocks) * BLOCK_SIZE],
-                    bts_icon.clone(),
-                    TextureFilter::Nearest,
-                );
-            }
-        }
     }
 }
 
