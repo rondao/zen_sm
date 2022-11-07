@@ -127,6 +127,9 @@ impl ZenSM {
 // Texture manipulation.
 impl ZenSM {
     fn reload_textures(&mut self, ctx: &Context) {
+        self.edit_selection = None;
+        self.level.clear_selection();
+
         let (_level_data, _tileset, palette, graphics, tile_table) = self
             .sm
             .get_state_data(&self.sm.states[&self.selected_state]);
@@ -159,7 +162,6 @@ impl ZenSM {
         let size = room.size_in_pixels();
         let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
 
-        self.level.clear_selection();
         self.level.gfx_layer.load_colors(ctx, colors, size);
         self.level.set_size(ctx, size);
 
