@@ -6,8 +6,8 @@ use zen::graphics::Rgb888;
 
 pub struct Texture {
     name: String,
+    size: Vec2,
     pub texture: Option<TextureHandle>,
-    pub size: Vec2,
     pub image: Option<ColorImage>,
 }
 
@@ -63,6 +63,10 @@ impl Texture {
 
             Some(crop)
         })
+    }
+
+    pub fn size(&self) -> Vec2 {
+        self.size
     }
 }
 

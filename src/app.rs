@@ -135,7 +135,7 @@ impl ZenSM {
             .get_state_data(&self.sm.states[&self.selected_state]);
 
         self.palette.load_texture(ctx, palette.to_colors());
-        self.graphics.texture.load_colors(
+        self.graphics.load_colors(
             ctx,
             graphics
                 .to_indexed_colors()
@@ -144,7 +144,7 @@ impl ZenSM {
                 .collect(),
             graphics.size(),
         );
-        self.tiletable.texture.load_colors(
+        self.tiletable.load_colors(
             ctx,
             tileset_to_colors(&tile_table, palette, &graphics),
             tileset_size(),

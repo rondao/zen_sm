@@ -8,7 +8,7 @@ use eframe::{
 use super::selectable_area::{Selectable, SelectableArea};
 
 pub struct PaintedSelectableArea {
-    pub selectable: SelectableArea,
+    selectable: SelectableArea,
 }
 
 impl PaintedSelectableArea {

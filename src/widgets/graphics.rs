@@ -1,4 +1,5 @@
-use eframe::egui::{Sense, Ui};
+use eframe::egui::{Context, Sense, Ui};
+use zen::graphics::Rgb888;
 // use zen::graphics::gfx::GFX_TILE_WIDTH;
 
 use super::helpers::{texture::Texture, zoom_area::ZoomArea};
@@ -7,7 +8,7 @@ use super::helpers::{texture::Texture, zoom_area::ZoomArea};
 
 pub struct GraphicsEditor {
     zoomable_area: ZoomArea,
-    pub texture: Texture,
+    texture: Texture,
 }
 
 impl Default for GraphicsEditor {
@@ -23,7 +24,11 @@ impl GraphicsEditor {
     pub fn ui(&mut self, ui: &mut Ui) {
         let (widget_rect, _) =
             self.zoomable_area
-                .create(ui, self.texture.size, Sense::focusable_noninteractive());
+                .create(ui, self.texture.size(), Sense::focusable_noninteractive());
         self.texture.ui(ui, widget_rect);
+    }
+
+    pub fn load_colors(&mut self, ctx: &Context, colors: Vec<Rgb888>, texture_size: [usize; 2]) {
+        self.texture.load_colors(ctx, colors, texture_size);
     }
 }

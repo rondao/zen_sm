@@ -50,7 +50,7 @@ impl Default for LevelEditor {
 
 impl LevelEditor {
     pub fn ui(&mut self, ui: &mut Ui) -> (Response, Rect, Option<Command>) {
-        let (widget_rect, widget_response) = self.drag_area.create(ui, self.gfx_layer.size);
+        let (widget_rect, widget_response) = self.drag_area.create(ui, self.gfx_layer.size());
 
         self.gfx_layer.ui(ui, widget_rect);
 
