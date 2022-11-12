@@ -4,9 +4,10 @@ use eframe::{
 };
 use zen::graphics::Rgb888;
 
+use crate::colors::rgb888s_to_rgba;
+
 pub struct Texture {
     name: String,
-    size: Vec2,
     pub texture: Option<TextureHandle>,
     pub image: Option<ColorImage>,
 }
@@ -16,7 +17,6 @@ impl Texture {
         Self {
             name,
             texture: None,
-            size: Vec2::default(),
             image: None,
         }
     }
@@ -28,19 +28,32 @@ impl Texture {
     }
 
     pub fn load_colors(&mut self, ctx: &Context, colors: Vec<Rgb888>, texture_size: [usize; 2]) {
-        self.load_image(
-            ctx,
-            ColorImage::from_rgba_unmultiplied(texture_size, &rgb888s_to_texture(&colors)),
-        );
+        let image =
+            ColorImage::from_rgba_unmultiplied(texture_size, &rgb888s_to_rgba(colors.into_iter()));
+
+        self.image = Some(image.clone());
+        self.texture = Some(ctx.load_texture(&self.name, image, TextureFilter::Nearest));
     }
 
     pub fn load_image(&mut self, ctx: &Context, image: ColorImage) {
-        self.size = Vec2 {
-            x: image.size[0] as f32,
-            y: image.size[1] as f32,
-        };
         self.image = Some(image.clone());
         self.texture = Some(ctx.load_texture(&self.name, image, TextureFilter::Nearest));
+    }
+
+    pub fn apply_colors(&mut self, colors: impl Iterator<Item = Rgb888>) {
+        let Some(image) = self.image.as_mut() else {return};
+        image
+            .pixels
+            .iter_mut()
+            .zip(colors)
+            .for_each(|(pixel, color)| {
+                pixel[0] = color.r;
+                pixel[1] = color.g;
+                pixel[2] = color.b;
+            });
+        if let Some(texture) = self.texture.as_mut() {
+            texture.set(image.clone(), TextureFilter::Nearest);
+        }
     }
 
     pub fn crop(&self, rect: Rect) -> Option<ColorImage> {
@@ -66,16 +79,15 @@ impl Texture {
     }
 
     pub fn size(&self) -> Vec2 {
-        self.size
-    }
-}
+        let size = if let Some(image) = self.image.as_ref() {
+            image.size
+        } else {
+            [0, 0]
+        };
 
-fn rgb888s_to_texture(colors: &[Rgb888]) -> Vec<u8> {
-    colors.into_iter().fold(Vec::new(), |mut pixels, color| {
-        pixels.push(color.r);
-        pixels.push(color.g);
-        pixels.push(color.b);
-        pixels.push(255);
-        pixels
-    })
+        Vec2 {
+            x: size[0] as f32,
+            y: size[1] as f32,
+        }
+    }
 }

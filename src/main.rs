@@ -4,7 +4,7 @@
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
-    // _start_puffin_server();
+    _start_puffin_server();
 
     let app = zen_sm::ZenSM::default();
     eframe::run_native(

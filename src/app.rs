@@ -8,11 +8,12 @@ use eframe::{
     epaint::{Pos2, Rect},
 };
 
+use zen::graphics::IndexedColor;
 use zen::super_metroid::{
     self,
     level_data::{Block, BtsBlock, BLOCKS_PER_SCREEN},
     tile_table::BLOCK_SIZE,
-    tileset::{tileset_size, tileset_to_colors, Tileset},
+    tileset::{tileset_size, tileset_to_indexed_colors, Tileset},
     SuperMetroid,
 };
 
@@ -53,8 +54,8 @@ enum Menu {
 
 impl eframe::App for ZenSM {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        puffin::profile_function!();
-        puffin::GlobalProfiler::lock().new_frame();
+        // puffin::profile_function!();
+        // puffin::GlobalProfiler::lock().new_frame();
 
         // Check if user selected a file.
         if let Ok(mut mutex_content) = SELECTED_FILE_DATA.lock() {
@@ -151,18 +152,23 @@ impl ZenSM {
             let (palette, graphics, tile_table) = self.sm.get_tileset_data(selected_tileset.index);
 
             self.palette_editor.load_texture(ctx, palette.to_colors());
-            self.graphics_editor.load_colors(
+            self.graphics_editor.load_texture(
                 ctx,
                 graphics
                     .to_indexed_colors()
-                    .into_iter()
-                    .map(|idx_color| palette.sub_palettes[0].colors[idx_color as usize].into())
+                    .iter()
+                    .map(|index| IndexedColor {
+                        index: *index as usize,
+                        sub_palette: 0,
+                    })
                     .collect(),
+                palette,
                 graphics.size(),
             );
-            self.tiletable_editor.load_colors(
+            self.tiletable_editor.load_texture(
                 ctx,
-                tileset_to_colors(&tile_table, palette, &graphics),
+                tileset_to_indexed_colors(&tile_table, &graphics),
+                palette,
                 tileset_size(),
             );
         }
@@ -179,9 +185,11 @@ impl ZenSM {
             .get_state_data(&self.sm.states[&selected_room.state_addr]);
 
         let size = room.size_in_pixels();
-        let colors = level_data.to_colors(room.size(), &tile_table, &palette, &graphics);
+        let indexed_colors = level_data.to_indexed_colors(room.size(), &tile_table, &graphics);
 
-        self.level_editor.gfx_layer.load_colors(ctx, colors, size);
+        self.level_editor
+            .gfx_layer
+            .load_colors(ctx, indexed_colors, palette, size);
         self.level_editor.set_size(ctx, size);
 
         let bts_icons =
@@ -250,8 +258,8 @@ impl ZenSM {
         }
 
         // Draw them onto texture.
-        if let Some(texture) = self.level_editor.gfx_layer.texture.as_mut() {
-            if let Some(gfx_image) = self.level_editor.gfx_layer.image.as_mut() {
+        if let Some(texture) = self.level_editor.gfx_layer.texture.texture.as_mut() {
+            if let Some(gfx_image) = self.level_editor.gfx_layer.texture.image.as_mut() {
                 let click_pixel_position = [
                     position.x as usize * BLOCK_SIZE,
                     position.y as usize * BLOCK_SIZE,
@@ -314,7 +322,10 @@ impl ZenSM {
 
             let (response, _) = self.palette_editor.ui(ui, palette);
             if response.changed() {
-                self.reload_textures(ui.ctx());
+                self.palette_editor.load_texture(ui.ctx(), palette.to_colors());
+                self.graphics_editor.apply_colors(palette);
+                self.tiletable_editor.apply_colors(palette);
+                self.level_editor.apply_colors(palette);
             }
         });
     }

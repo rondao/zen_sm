@@ -4,11 +4,11 @@ use eframe::{
     egui::{Context, Response, TextureFilter, Ui},
     epaint::{ColorImage, Pos2, Rect, Vec2},
 };
-use zen::graphics::gfx::GFX_TILE_WIDTH;
+use zen::graphics::{gfx::GFX_TILE_WIDTH, Palette};
 
 use super::helpers::{
-    drag_area::DragArea, painted_selectable_area::PaintedSelectableArea,
-    selectable_area::Selectable, texture::Texture,
+    drag_area::DragArea, indexed_texture::IndexedTexture,
+    painted_selectable_area::PaintedSelectableArea, selectable_area::Selectable, texture::Texture,
 };
 
 const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
@@ -22,7 +22,7 @@ pub struct BtsTile {
 pub struct LevelEditor {
     drag_area: DragArea,
     selection: PaintedSelectableArea,
-    pub gfx_layer: Texture,
+    pub gfx_layer: IndexedTexture,
     pub bts_layer: Texture,
     pub bts_icons: HashMap<BtsTile, ColorImage>,
     draw_bts: bool,
@@ -39,7 +39,7 @@ impl Default for LevelEditor {
         Self {
             drag_area: DragArea::default(),
             selection: PaintedSelectableArea::new([1.0, 1.0], SELECTION_SIZE),
-            gfx_layer: Texture::new("Layer01_LevelEditor".to_string()),
+            gfx_layer: IndexedTexture::new("Layer01_LevelEditor".to_string()),
             bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
             bts_icons: load_bts_icons(),
             draw_bts: true,
@@ -104,6 +104,10 @@ impl LevelEditor {
             ColorImage::from_rgba_unmultiplied(size, &vec![0; size[0] * size[1] * 4]),
             TextureFilter::Nearest,
         ));
+    }
+
+    pub fn apply_colors(&mut self, palette: &Palette) {
+        self.gfx_layer.apply_colors(palette);
     }
 
     pub fn clear_selection(&mut self) {
