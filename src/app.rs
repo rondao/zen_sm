@@ -419,9 +419,16 @@ impl ZenSM {
             ZenSM::draw_combo_box(ui, "Room", self.sorted_room_list.iter(), selected_room.addr)
         {
             let room = &self.sm.rooms[&selection];
+            let state_addr = room.state_conditions[0].state_address as usize;
             self.selected_room = Some(RoomSelection {
                 addr: selection,
-                state_addr: room.state_conditions[0].state_address as usize,
+                state_addr,
+            });
+
+            let tileset = self.sm.states[&state_addr].tileset as usize;
+            self.selected_tileset = Some(TilesetSelection {
+                index: tileset,
+                data: self.sm.tilesets[tileset],
             });
 
             self.reload_textures(ui.ctx());
@@ -439,6 +446,13 @@ impl ZenSM {
             selected_room.state_addr,
         ) {
             self.selected_room.as_mut().unwrap().state_addr = selection;
+
+            let tileset = self.sm.states[&selection].tileset as usize;
+            self.selected_tileset = Some(TilesetSelection {
+                index: tileset,
+                data: self.sm.tilesets[tileset],
+            });
+
             self.reload_textures(ui.ctx());
         };
     }
