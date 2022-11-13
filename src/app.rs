@@ -1,17 +1,16 @@
-use std::{collections::VecDeque, sync::Mutex};
+use std::sync::Mutex;
 
 use futures::Future;
 
 use crate::widgets::{self, Command};
 use eframe::{
     egui::{self, Context, TextureFilter, Ui},
-    epaint::{Pos2, Rect},
+    epaint::Rect,
 };
 
 use zen::graphics::IndexedColor;
 use zen::super_metroid::{
     self,
-    level_data::{Block, BtsBlock, BLOCKS_PER_SCREEN},
     tile_table::BLOCK_SIZE,
     tileset::{tileset_size, tileset_to_indexed_colors, Tileset},
     SuperMetroid,
@@ -188,8 +187,7 @@ impl ZenSM {
         let indexed_colors = level_data.to_indexed_colors(room.size(), &tile_table, &graphics);
 
         self.level_editor
-            .gfx_layer
-            .load_colors(ctx, indexed_colors, palette, size);
+            .load_colors(ctx, indexed_colors, *palette, size);
         self.level_editor.set_size(ctx, size);
 
         let bts_icons =
@@ -217,80 +215,6 @@ impl ZenSM {
                         bts_icon.clone(),
                         TextureFilter::Nearest,
                     );
-            }
-        }
-    }
-}
-
-// Data manipulation.
-impl ZenSM {
-    fn apply_edit_selection(&mut self, selection: Rect, position: Pos2) {
-        let Some(selected_room) = self.selected_room else {return};
-
-        let room = &self.sm.rooms[&selected_room.addr];
-        let state = self.sm.states[&selected_room.state_addr];
-        let level = self
-            .sm
-            .levels
-            .get_mut(&(state.level_address as usize))
-            .unwrap();
-
-        // Extract selected tiles data, to avoid overwriting them.
-        let mut selected_tiles: VecDeque<(Block, BtsBlock)> = VecDeque::new();
-        for x in (selection.min.x as usize)..(selection.max.x as usize) {
-            for y in (selection.min.y as usize)..(selection.max.y as usize) {
-                let index = x + y * room.size().0 * BLOCKS_PER_SCREEN;
-                selected_tiles.push_back((level.layer1[index], level.bts[index]));
-            }
-        }
-
-        // Apply them to the level, from the extracted tiles.
-        let index_cursor_position =
-            (position.x as usize) + (position.y as usize) * room.size().0 * BLOCKS_PER_SCREEN;
-        for x in 0..(selection.max.x - selection.min.x) as usize {
-            for y in 0..(selection.max.y - selection.min.y) as usize {
-                let index = index_cursor_position + x + y * room.size().0 * BLOCKS_PER_SCREEN;
-                if let Some((layer1_block, bts)) = selected_tiles.pop_front() {
-                    level.layer1[index] = layer1_block;
-                    level.bts[index] = bts;
-                }
-            }
-        }
-
-        // Draw them onto texture.
-        if let Some(texture) = self.level_editor.gfx_layer.texture.texture.as_mut() {
-            if let Some(gfx_image) = self.level_editor.gfx_layer.texture.image.as_mut() {
-                let click_pixel_position = [
-                    position.x as usize * BLOCK_SIZE,
-                    position.y as usize * BLOCK_SIZE,
-                ];
-                let selection_pixel_position = [
-                    selection.min.x as usize * BLOCK_SIZE,
-                    selection.min.y as usize * BLOCK_SIZE,
-                ];
-
-                let screen_width_in_pixels = room.size().0 * BLOCKS_PER_SCREEN * BLOCK_SIZE;
-                let selection_width_in_pixels = (selection.width() as usize) * BLOCK_SIZE;
-
-                let selection_size_in_pixels = selection.area() as usize * BLOCK_SIZE * BLOCK_SIZE;
-                let selected_pixels: Vec<_> = (0..selection_size_in_pixels)
-                    .map(|index| {
-                        let x = selection_pixel_position[0] + (index % selection_width_in_pixels);
-                        let y = selection_pixel_position[1] * screen_width_in_pixels
-                            + (index / selection_width_in_pixels) * screen_width_in_pixels;
-
-                        gfx_image.pixels[x + y]
-                    })
-                    .collect();
-
-                for (index, pixel) in selected_pixels.iter().enumerate() {
-                    let x = click_pixel_position[0] + (index % selection_width_in_pixels);
-                    let y = click_pixel_position[1] * screen_width_in_pixels
-                        + (index / selection_width_in_pixels) * screen_width_in_pixels;
-                    gfx_image.pixels[x + y] = *pixel;
-                }
-
-                texture.set(gfx_image.clone(), TextureFilter::Nearest);
             }
         }
     }
@@ -467,9 +391,18 @@ impl ZenSM {
                         self.edit_selection = Some(new_selection)
                     }
                     Some(Command::Apply(position)) => {
-                        if let Some(selection) = self.edit_selection {
-                            self.apply_edit_selection(selection, position);
-                        }
+                        let Some(selection) = self.edit_selection else {return};
+                        let Some(selected_room) = self.selected_room else {return};
+
+                        let state = self.sm.states[&selected_room.state_addr];
+                        let level = self
+                            .sm
+                            .levels
+                            .get_mut(&(state.level_address as usize))
+                            .unwrap();
+
+                        self.level_editor
+                            .apply_edit_selection(level, selection, position);
                     }
                     None => (),
                 }

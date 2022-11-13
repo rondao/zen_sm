@@ -1,13 +1,13 @@
 mod graphics;
 mod helpers;
-mod level;
+mod level_editor;
 mod palette;
 mod tiletable;
 
 pub use graphics::GraphicsEditor;
-pub use level::BtsTile;
-pub use level::LevelEditor;
+pub use level_editor::BtsTile;
+pub use level_editor::LevelEditor;
 pub use palette::PaletteEditor;
 pub use tiletable::TileTableEditor;
 
-pub use level::Command;
+pub use helpers::editor::Command;
