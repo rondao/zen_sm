@@ -2,11 +2,8 @@ use std::sync::Mutex;
 
 use futures::Future;
 
-use crate::widgets::{self, Command};
-use eframe::{
-    egui::{self, Context, TextureFilter, Ui},
-    epaint::Rect,
-};
+use crate::widgets::{self};
+use eframe::egui::{self, Context, TextureFilter, Ui};
 
 use zen::graphics::IndexedColor;
 use zen::super_metroid::{
@@ -30,7 +27,6 @@ pub struct ZenSM {
     sorted_room_list: Vec<usize>,
     selected_tileset: Option<TilesetSelection>,
     selected_room: Option<RoomSelection>,
-    edit_selection: Option<Rect>,
 }
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -144,7 +140,6 @@ impl ZenSM {
 // Texture manipulation.
 impl ZenSM {
     fn reload_textures(&mut self, ctx: &Context) {
-        self.edit_selection = None;
         self.level_editor.clear_selection();
 
         if let Some(selected_tileset) = self.selected_tileset {
@@ -382,32 +377,18 @@ impl ZenSM {
     }
 
     fn draw_level(&mut self, ui: &mut Ui) {
-        if !self.sm.states.is_empty() {
-            egui::ScrollArea::both().show(ui, |ui| {
-                let (_, _, command) = self.level_editor.ui(ui);
+        let Some(selected_room) = self.selected_room else {return};
 
-                match command {
-                    Some(Command::Selection(new_selection)) => {
-                        self.edit_selection = Some(new_selection)
-                    }
-                    Some(Command::Apply(position)) => {
-                        let Some(selection) = self.edit_selection else {return};
-                        let Some(selected_room) = self.selected_room else {return};
+        let state = self.sm.states[&selected_room.state_addr];
+        let level = self
+            .sm
+            .levels
+            .get_mut(&(state.level_address as usize))
+            .unwrap();
 
-                        let state = self.sm.states[&selected_room.state_addr];
-                        let level = self
-                            .sm
-                            .levels
-                            .get_mut(&(state.level_address as usize))
-                            .unwrap();
-
-                        self.level_editor
-                            .apply_edit_selection(level, selection, position);
-                    }
-                    None => (),
-                }
-            });
-        }
+        egui::ScrollArea::both().show(ui, |ui| {
+            self.level_editor.ui(ui, level);
+        });
     }
 
     fn draw_combo_box<'a>(

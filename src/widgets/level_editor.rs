@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::HashMap;
 
 use eframe::{
     egui::{Context, Response, TextureFilter, Ui},
@@ -30,6 +30,21 @@ pub struct LevelEditor {
     pub bts_layer: Texture,
     pub bts_icons: HashMap<BtsTile, ColorImage>,
     draw_bts: bool,
+    edit_selection: BlockSelection,
+}
+
+pub struct BlockSelection {
+    data: Vec<(Block, u8)>,
+    rect: Rect,
+}
+
+impl Default for BlockSelection {
+    fn default() -> Self {
+        Self {
+            data: Vec::new(),
+            rect: Rect::NOTHING,
+        }
+    }
 }
 
 impl Default for LevelEditor {
@@ -39,13 +54,25 @@ impl Default for LevelEditor {
             bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
             bts_icons: load_bts_icons(),
             draw_bts: true,
+            edit_selection: BlockSelection::default(),
         }
     }
 }
 
 impl LevelEditor {
-    pub fn ui(&mut self, ui: &mut Ui) -> (Response, Rect, Option<Command>) {
+    pub fn ui(&mut self, ui: &mut Ui, level: &mut LevelData) -> (Response, Rect, Option<Command>) {
         let (widget_response, widget_rect, command) = self.editor.ui(ui);
+
+        match command {
+            Some(Command::Selection(new_selection)) => {
+                self.edit_selection.data = self.extract_selected_tiles(level, new_selection);
+                self.edit_selection.rect = new_selection;
+            }
+            Some(Command::Apply(position)) => {
+                self.apply_edit_selection(level, position);
+            }
+            None => (),
+        }
 
         for event in &ui.input().events {
             match event {
@@ -65,31 +92,38 @@ impl LevelEditor {
         (widget_response, widget_rect, command)
     }
 
-    pub fn apply_edit_selection(&mut self, level: &mut LevelData, selection: Rect, position: Pos2) {
+    fn extract_selected_tiles(&self, level: &mut LevelData, selection: Rect) -> Vec<(Block, u8)> {
         let width_in_blocks = self.editor.texture_to_edit.size().x as usize / BLOCK_SIZE;
 
-        // Extract selected tiles data, to avoid overwriting them.
-        let mut selected_tiles: VecDeque<(Block, BtsBlock)> = VecDeque::new();
+        let mut selected_tiles: Vec<(Block, BtsBlock)> = Vec::new();
         for x in (selection.min.x as usize)..(selection.max.x as usize) {
             for y in (selection.min.y as usize)..(selection.max.y as usize) {
                 let index = x + y * width_in_blocks;
-                selected_tiles.push_back((level.layer1[index], level.bts[index]));
+                selected_tiles.push((level.layer1[index], level.bts[index]));
             }
         }
 
+        selected_tiles
+    }
+
+    pub fn apply_edit_selection(&mut self, level: &mut LevelData, position: Pos2) {
+        let width_in_blocks = self.editor.texture_to_edit.size().x as usize / BLOCK_SIZE;
+        let mut selected_tiles = self.edit_selection.data.iter();
+
         // Apply them to the level, from the extracted tiles.
         let index_cursor_position = (position.x as usize) + (position.y as usize) * width_in_blocks;
-        for x in 0..(selection.max.x - selection.min.x) as usize {
-            for y in 0..(selection.max.y - selection.min.y) as usize {
+        for x in 0..self.edit_selection.rect.width() as usize {
+            for y in 0..self.edit_selection.rect.height() as usize {
                 let index = index_cursor_position + x + y * width_in_blocks;
-                if let Some((layer1_block, bts)) = selected_tiles.pop_front() {
-                    level.layer1[index] = layer1_block;
-                    level.bts[index] = bts;
+                if let Some((layer1_block, bts)) = selected_tiles.next() {
+                    level.layer1[index] = *layer1_block;
+                    level.bts[index] = *bts;
                 }
             }
         }
 
         // Draw them onto texture.
+        // TODO: We also need to draw onto the BTS layer.
         if let Some(texture) = self.editor.texture_to_edit.texture.texture.as_mut() {
             if let Some(gfx_image) = self.editor.texture_to_edit.texture.image.as_mut() {
                 let click_pixel_position = [
@@ -97,14 +131,16 @@ impl LevelEditor {
                     position.y as usize * BLOCK_SIZE,
                 ];
                 let selection_pixel_position = [
-                    selection.min.x as usize * BLOCK_SIZE,
-                    selection.min.y as usize * BLOCK_SIZE,
+                    self.edit_selection.rect.min.x as usize * BLOCK_SIZE,
+                    self.edit_selection.rect.min.y as usize * BLOCK_SIZE,
                 ];
 
                 let screen_width_in_pixels = texture.size()[0];
-                let selection_width_in_pixels = (selection.width() as usize) * BLOCK_SIZE;
+                let selection_width_in_pixels =
+                    (self.edit_selection.rect.width() as usize) * BLOCK_SIZE;
 
-                let selection_size_in_pixels = selection.area() as usize * BLOCK_SIZE * BLOCK_SIZE;
+                let selection_size_in_pixels =
+                    self.edit_selection.rect.area() as usize * BLOCK_SIZE * BLOCK_SIZE;
                 let selected_pixels: Vec<_> = (0..selection_size_in_pixels)
                     .map(|index| {
                         let x = selection_pixel_position[0] + (index % selection_width_in_pixels);
@@ -141,6 +177,7 @@ impl LevelEditor {
     }
 
     pub fn clear_selection(&mut self) {
+        self.edit_selection = BlockSelection::default();
         self.editor.clear_selection();
     }
 
