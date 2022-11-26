@@ -84,6 +84,10 @@ impl SelectableArea {
         self.area_by_selection = Self::sizes(area, size);
     }
 
+    pub fn set_selection(&mut self, selection: Rect) {
+        self.selection = Some(selection);
+    }
+
     pub fn position(&self) -> Option<Pos2> {
         self.selection.and_then(|selection| Some(selection.min))
     }

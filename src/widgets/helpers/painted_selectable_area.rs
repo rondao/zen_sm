@@ -53,6 +53,10 @@ impl PaintedSelectableArea {
         self.selectable.set_sizes(area, size);
     }
 
+    pub fn set_selection(&mut self, selection: Rect) {
+        self.selectable.set_selection(selection)
+    }
+
     fn paint_selection(&self, ui: &mut Ui, widget_rect: Rect, selection: Rect) {
         ui.painter_at(widget_rect)
             .rect_stroke(selection, 1.0, Stroke::new(2.0, Color32::WHITE));

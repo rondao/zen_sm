@@ -7,7 +7,7 @@ use eframe::{
 use zen::{
     graphics::{gfx::GFX_TILE_WIDTH, Palette},
     super_metroid::{
-        level_data::{Block, BtsBlock, LevelData},
+        level_data::{Block, BlockType, BtsBlock, LevelData},
         tile_table::BLOCK_SIZE,
     },
 };
@@ -21,7 +21,7 @@ const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
 #[derive(Default, Debug, Hash, Eq, PartialEq)]
 pub struct BtsTile {
-    pub block_type: u8,
+    pub block_type: BlockType,
     pub bts_block: u8,
 }
 
@@ -34,14 +34,16 @@ pub struct LevelEditor {
 }
 
 pub struct BlockSelection {
-    data: Vec<(Block, u8)>,
-    rect: Rect,
+    pub data: Vec<(Block, u8)>,
+    pub image: ColorImage,
+    pub rect: Rect,
 }
 
 impl Default for BlockSelection {
     fn default() -> Self {
         Self {
             data: Vec::new(),
+            image: ColorImage::default(),
             rect: Rect::NOTHING,
         }
     }
@@ -64,10 +66,18 @@ impl LevelEditor {
         let (widget_response, widget_rect, command) = self.editor.ui(ui);
 
         match command {
-            Some(Command::Selection(new_selection)) => {
-                self.edit_selection.data = self.extract_selected_tiles(level, new_selection);
-                self.edit_selection.rect = new_selection;
-            }
+            Some(Command::Selection(selection, ref image_selection)) => self.set_selection(
+                ui.ctx(),
+                BlockSelection {
+                    data: self.extract_selected_tiles(level, selection),
+                    image: self
+                        .editor
+                        .crop_selection(selection)
+                        .expect("Extracting selection without texture."),
+                    rect: selection,
+                },
+                image_selection.clone(),
+            ),
             Some(Command::Apply(position)) => {
                 self.apply_edit_selection(level, position);
             }
@@ -130,28 +140,12 @@ impl LevelEditor {
                     position.x as usize * BLOCK_SIZE,
                     position.y as usize * BLOCK_SIZE,
                 ];
-                let selection_pixel_position = [
-                    self.edit_selection.rect.min.x as usize * BLOCK_SIZE,
-                    self.edit_selection.rect.min.y as usize * BLOCK_SIZE,
-                ];
 
                 let screen_width_in_pixels = texture.size()[0];
                 let selection_width_in_pixels =
                     (self.edit_selection.rect.width() as usize) * BLOCK_SIZE;
 
-                let selection_size_in_pixels =
-                    self.edit_selection.rect.area() as usize * BLOCK_SIZE * BLOCK_SIZE;
-                let selected_pixels: Vec<_> = (0..selection_size_in_pixels)
-                    .map(|index| {
-                        let x = selection_pixel_position[0] + (index % selection_width_in_pixels);
-                        let y = selection_pixel_position[1] * screen_width_in_pixels
-                            + (index / selection_width_in_pixels) * screen_width_in_pixels;
-
-                        gfx_image.pixels[x + y]
-                    })
-                    .collect();
-
-                for (index, pixel) in selected_pixels.iter().enumerate() {
+                for (index, pixel) in self.edit_selection.image.pixels.iter().enumerate() {
                     let x = click_pixel_position[0] + (index % selection_width_in_pixels);
                     let y = click_pixel_position[1] * screen_width_in_pixels
                         + (index / selection_width_in_pixels) * screen_width_in_pixels;
@@ -161,15 +155,6 @@ impl LevelEditor {
                 texture.set(gfx_image.clone(), TextureFilter::Nearest);
             }
         }
-    }
-
-    pub fn set_size(&mut self, ctx: &Context, size: [usize; 2]) {
-        self.editor.set_size(size);
-        self.bts_layer.texture = Some(ctx.load_texture(
-            "BTS Texture",
-            ColorImage::from_rgba_unmultiplied(size, &vec![0; size[0] * size[1] * 4]),
-            TextureFilter::Nearest,
-        ));
     }
 
     pub fn apply_colors(&mut self, palette: &Palette) {
@@ -188,8 +173,29 @@ impl LevelEditor {
         palette: Palette,
         texture_size: [usize; 2],
     ) {
+        self.editor.set_size(texture_size);
+        self.bts_layer.texture = Some(ctx.load_texture(
+            "BTS Texture",
+            ColorImage::from_rgba_unmultiplied(
+                texture_size,
+                &vec![0; texture_size[0] * texture_size[1] * 4],
+            ),
+            TextureFilter::Nearest,
+        ));
+
         self.editor
             .load_colors(ctx, indexed_colors, &palette, texture_size);
+    }
+
+    pub fn set_selection(
+        &mut self,
+        ctx: &Context,
+        block_selection: BlockSelection,
+        image_selection: ColorImage,
+    ) {
+        self.editor
+            .set_selection(ctx, image_selection, block_selection.rect);
+        self.edit_selection = block_selection;
     }
 }
 
@@ -202,7 +208,9 @@ fn load_bts_icons() -> HashMap<BtsTile, ColorImage> {
         let mut splitted_file_name = path.file_stem().unwrap().to_str().unwrap().split("_");
 
         let bts_tile = BtsTile {
-            block_type: u8::from_str_radix(splitted_file_name.next().unwrap(), 16).unwrap(),
+            block_type: u8::from_str_radix(splitted_file_name.next().unwrap(), 16)
+                .unwrap()
+                .into(),
             bts_block: u8::from_str_radix(splitted_file_name.next().unwrap(), 16).unwrap(),
         };
 

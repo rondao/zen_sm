@@ -1,6 +1,6 @@
 use eframe::{
     egui::{Context, Response, Ui},
-    epaint::{Pos2, Rect, Vec2},
+    epaint::{ColorImage, Pos2, Rect, Vec2},
 };
 use zen::graphics::{IndexedColor, Palette};
 
@@ -18,7 +18,7 @@ pub struct Editor {
 }
 
 pub enum Command {
-    Selection(Rect),
+    Selection(Rect, ColorImage),
     Apply(Pos2),
 }
 
@@ -38,31 +38,40 @@ impl Editor {
 
         self.texture_to_edit.ui(ui, widget_rect);
 
-        let action = self.selection.ui(ui, widget_rect, &widget_response);
-        if let Some(ref action) = action {
-            match action {
-                Selectable::SelectedHovering(selection) => self.selected_texture.ui(ui, *selection),
-                Selectable::Selected(mut selection) => {
-                    selection.max =
-                        (selection.max.to_vec2() * Vec2::from(self.selection_size)).to_pos2();
-                    selection.min =
-                        (selection.min.to_vec2() * Vec2::from(self.selection_size)).to_pos2();
-
-                    if let Some(selected_image) = self.texture_to_edit.crop(selection) {
-                        self.selected_texture.load_image(ui.ctx(), selected_image);
-                    }
-                }
-                _ => (),
+        let Some(action) = self.selection.ui(ui, widget_rect, &widget_response) else {return (widget_response, widget_rect, None)};
+        let command = match action {
+            Selectable::SelectedHovering(selection) => {
+                self.selected_texture.ui(ui, selection);
+                None
             }
-        }
-
-        let command = action.and_then(|action| match action {
-            Selectable::Selected(selection) => Some(Command::Selection(selection)),
+            Selectable::Selected(selection) => Some(Command::Selection(
+                selection,
+                self.crop_selection(selection)
+                    .expect("Creating a selection without a texture?"),
+            )),
             Selectable::Clicked(position) => Some(Command::Apply(position)),
             _ => None,
-        });
+        };
 
         (widget_response, widget_rect, command)
+    }
+
+    pub fn crop_selection(&self, selection: Rect) -> Option<ColorImage> {
+        let pixel_size_selection = Rect::from_min_max(
+            (selection.min.to_vec2() * Vec2::from(self.selection_size)).to_pos2(),
+            (selection.max.to_vec2() * Vec2::from(self.selection_size)).to_pos2(),
+        );
+        self.texture_to_edit.crop(pixel_size_selection)
+    }
+
+    pub fn set_selection(
+        &mut self,
+        ctx: &Context,
+        image_selection: ColorImage,
+        rect_selection: Rect,
+    ) {
+        self.selected_texture.load_image(ctx, image_selection);
+        self.selection.set_selection(rect_selection);
     }
 
     pub fn set_size(&mut self, size: [usize; 2]) {

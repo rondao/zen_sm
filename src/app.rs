@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use futures::Future;
 
-use crate::widgets::{self};
+use crate::widgets::{self, TileTableCommand};
 use eframe::egui::{self, Context, TextureFilter, Ui};
 
 use zen::graphics::IndexedColor;
@@ -183,7 +183,6 @@ impl ZenSM {
 
         self.level_editor
             .load_colors(ctx, indexed_colors, *palette, size);
-        self.level_editor.set_size(ctx, size);
 
         let bts_icons =
             level_data
@@ -259,8 +258,11 @@ impl ZenSM {
 
     fn draw_tile_table(&mut self, ui: &mut Ui) {
         if !self.sm.tile_tables.is_empty() {
-            egui::ScrollArea::both().show(ui, |ui| {
-                self.tiletable_editor.ui(ui);
+            egui::ScrollArea::both().show(ui, |ui| match self.tiletable_editor.ui(ui) {
+                TileTableCommand::Selected(block_selection, image_selection) => self
+                    .level_editor
+                    .set_selection(ui.ctx(), block_selection, image_selection),
+                TileTableCommand::None => (),
             });
         }
     }
