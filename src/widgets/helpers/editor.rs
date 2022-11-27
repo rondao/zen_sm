@@ -1,8 +1,8 @@
 use eframe::{
-    egui::{Context, Response, TextureFilter, Ui},
+    egui::{Context, Response, Ui},
     epaint::{ColorImage, Pos2, Rect, Vec2},
 };
-use zen::graphics::{IndexedColor, Palette};
+use zen::graphics::{IndexedColor, Palette, Rgb888};
 
 use super::{
     drag_area::DragArea, indexed_texture::IndexedTexture,
@@ -18,7 +18,7 @@ pub struct Editor {
 }
 
 pub enum Command {
-    Selection(Rect, ColorImage),
+    Selection(Rect, Vec<IndexedColor>),
     Apply(Pos2),
 }
 
@@ -46,8 +46,7 @@ impl Editor {
             }
             Selectable::Selected(selection) => Some(Command::Selection(
                 selection,
-                self.crop_selection(selection)
-                    .expect("Creating a selection without a texture?"),
+                self.crop_selection(selection),
             )),
             Selectable::Clicked(position) => Some(Command::Apply(position)),
             _ => None,
@@ -56,29 +55,33 @@ impl Editor {
         (widget_response, widget_rect, command)
     }
 
-    pub fn edit_texture(&mut self, position: Pos2, selection_width: f32, image: &ColorImage) {
-        let Some(texture) = self.texture_to_edit.texture.texture.as_mut() else {return};
-        let Some(gfx_image) = self.texture_to_edit.texture.image.as_mut() else {return};
-
+    pub fn edit_texture(
+        &mut self,
+        position: Pos2,
+        selection_width: f32,
+        indexed_image: &Vec<IndexedColor>,
+        palette: &Palette,
+    ) {
         let click_pixel_position = [
             (position.x * self.selection_size[0]) as usize,
             (position.y * self.selection_size[1]) as usize,
         ];
 
-        let screen_width_in_pixels = texture.size()[0];
+        let screen_width_in_pixels = self.texture_to_edit.size()[0] as usize;
         let selection_width_in_pixels = (selection_width * self.selection_size[0]) as usize;
 
-        for (index, pixel) in image.pixels.iter().enumerate() {
+        let new_indexed_colors = &mut self.texture_to_edit.indexed_colors;
+        for (index, indexed_color) in indexed_image.iter().enumerate() {
             let x = click_pixel_position[0] + (index % selection_width_in_pixels);
             let y = click_pixel_position[1] * screen_width_in_pixels
                 + (index / selection_width_in_pixels) * screen_width_in_pixels;
-            gfx_image.pixels[x + y] = *pixel;
+            new_indexed_colors[x + y] = *indexed_color;
         }
 
-        texture.set(gfx_image.clone(), TextureFilter::Nearest);
+        self.texture_to_edit.apply_colors(palette);
     }
 
-    pub fn crop_selection(&self, selection: Rect) -> Option<ColorImage> {
+    pub fn crop_selection(&self, selection: Rect) -> Vec<IndexedColor> {
         let pixel_size_selection = Rect::from_min_max(
             (selection.min.to_vec2() * Vec2::from(self.selection_size)).to_pos2(),
             (selection.max.to_vec2() * Vec2::from(self.selection_size)).to_pos2(),
@@ -89,10 +92,21 @@ impl Editor {
     pub fn set_selection(
         &mut self,
         ctx: &Context,
-        image_selection: ColorImage,
+        indexed_image: &Vec<IndexedColor>,
         rect_selection: Rect,
+        palette: &Palette,
     ) {
-        self.selected_texture.load_image(ctx, image_selection);
+        self.selected_texture.load_image(
+            ctx,
+            indexed_color_to_color_image(
+                indexed_image,
+                palette,
+                [
+                    (rect_selection.size().x * self.selection_size[0]) as usize,
+                    (rect_selection.size().y * self.selection_size[1]) as usize,
+                ],
+            ),
+        );
         self.selection.set_selection(rect_selection);
     }
 
@@ -123,4 +137,24 @@ impl Editor {
     pub fn clear_selection(&mut self) {
         self.selected_texture.texture = None;
     }
+}
+
+pub fn indexed_color_to_color_image(
+    indexed_colors: &Vec<IndexedColor>,
+    palette: &Palette,
+    size: [usize; 2],
+) -> ColorImage {
+    let colors = indexed_colors
+        .iter()
+        .fold(Vec::new(), |mut output, idx_color| {
+            let rgb888: Rgb888 =
+                palette.sub_palettes[idx_color.sub_palette].colors[idx_color.index].into();
+            output.push(rgb888.r);
+            output.push(rgb888.g);
+            output.push(rgb888.b);
+            output.push(255);
+            output
+        });
+
+    ColorImage::from_rgba_unmultiplied(size, &colors)
 }

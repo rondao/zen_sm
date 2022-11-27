@@ -259,9 +259,13 @@ impl ZenSM {
     fn draw_tile_table(&mut self, ui: &mut Ui) {
         if !self.sm.tile_tables.is_empty() {
             egui::ScrollArea::both().show(ui, |ui| match self.tiletable_editor.ui(ui) {
-                TileTableCommand::Selected(block_selection, image_selection) => self
-                    .level_editor
-                    .set_selection(ui.ctx(), block_selection, image_selection),
+                TileTableCommand::Selected(block_selection) => {
+                    let Some(tileset) = self.selected_tileset else {return};
+                    let Some(palette) = self.sm.palettes.get_mut(&(tileset.data.palette as usize)) else {return};
+
+                    self.level_editor
+                        .set_selection(ui.ctx(), block_selection, palette)
+                }
                 TileTableCommand::None => (),
             });
         }
@@ -379,6 +383,8 @@ impl ZenSM {
     }
 
     fn draw_level(&mut self, ui: &mut Ui) {
+        let Some(tileset) = self.selected_tileset else {return};
+        let Some(palette) = self.sm.palettes.get_mut(&(tileset.data.palette as usize)) else {return};
         let Some(selected_room) = self.selected_room else {return};
 
         let state = self.sm.states[&selected_room.state_addr];
@@ -389,7 +395,7 @@ impl ZenSM {
             .unwrap();
 
         egui::ScrollArea::both().show(ui, |ui| {
-            self.level_editor.ui(ui, level);
+            self.level_editor.ui(ui, level, palette);
         });
     }
 

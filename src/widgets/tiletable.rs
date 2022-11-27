@@ -1,6 +1,6 @@
 use eframe::{
     egui::{Context, Ui},
-    epaint::{ColorImage, Rect},
+    epaint::Rect,
 };
 use zen::{
     graphics::{gfx::GFX_TILE_WIDTH, IndexedColor, Palette},
@@ -15,7 +15,7 @@ use super::{helpers::editor::Editor, level_editor::BlockSelection, Command};
 const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
 pub enum TileTableCommand {
-    Selected(BlockSelection, ColorImage),
+    Selected(BlockSelection),
     None,
 }
 
@@ -36,14 +36,18 @@ impl TileTableEditor {
         let (_, _, command) = self.editor.ui(ui);
 
         match command {
-            Some(Command::Selection(selection, image_selection)) => {
-                TileTableCommand::Selected(self.extract_selected_tiles(selection), image_selection)
+            Some(Command::Selection(selection, indexed_colors)) => {
+                TileTableCommand::Selected(BlockSelection {
+                    data: self.extract_selected_tiles(selection),
+                    indexed_colors,
+                    rect: selection,
+                })
             }
             _ => TileTableCommand::None,
         }
     }
 
-    fn extract_selected_tiles(&self, selection: Rect) -> BlockSelection {
+    fn extract_selected_tiles(&self, selection: Rect) -> Vec<(Block, BtsBlock)> {
         let width_in_blocks = self.editor.size().x as usize / BLOCK_SIZE;
 
         let mut selected_tiles: Vec<(Block, BtsBlock)> = Vec::new();
@@ -60,14 +64,7 @@ impl TileTableEditor {
             }
         }
 
-        BlockSelection {
-            data: selected_tiles,
-            image: self
-                .editor
-                .crop_selection(selection)
-                .expect("Extracting selection without texture."),
-            rect: selection,
-        }
+        selected_tiles
     }
 
     pub fn load_texture(

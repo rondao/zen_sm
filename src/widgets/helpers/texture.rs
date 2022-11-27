@@ -1,6 +1,6 @@
 use eframe::{
     egui::{Context, Image, TextureFilter, Ui},
-    epaint::{Color32, ColorImage, Rect, TextureHandle, Vec2},
+    epaint::{ColorImage, Rect, TextureHandle, Vec2},
 };
 use zen::graphics::Rgb888;
 
@@ -54,28 +54,6 @@ impl Texture {
         if let Some(texture) = self.texture.as_mut() {
             texture.set(image.clone(), TextureFilter::Nearest);
         }
-    }
-
-    pub fn crop(&self, rect: Rect) -> Option<ColorImage> {
-        self.image.as_ref().and_then(|image| {
-            let mut crop = ColorImage::new(
-                [rect.size().x as usize, rect.size().y as usize],
-                Color32::BLACK,
-            );
-
-            let x_size = rect.width() as usize;
-            let y_size = rect.height() as usize;
-
-            let top_right_start = rect.min.x as usize + (rect.min.y as usize * image.width());
-            for y in 0..y_size {
-                for x in 0..x_size {
-                    crop.pixels[x + (y * x_size)] =
-                        image.pixels[top_right_start + x + (y * image.width())];
-                }
-            }
-
-            Some(crop)
-        })
     }
 
     pub fn size(&self) -> Vec2 {

@@ -5,7 +5,7 @@ use eframe::{
     epaint::{ColorImage, Pos2, Rect},
 };
 use zen::{
-    graphics::{gfx::GFX_TILE_WIDTH, Palette},
+    graphics::{gfx::GFX_TILE_WIDTH, IndexedColor, Palette},
     super_metroid::{
         level_data::{Block, BlockType, BtsBlock, LevelData},
         tile_table::BLOCK_SIZE,
@@ -35,15 +35,15 @@ pub struct LevelEditor {
 
 pub struct BlockSelection {
     pub data: Vec<(Block, u8)>,
-    pub image: ColorImage,
+    pub indexed_colors: Vec<IndexedColor>,
     pub rect: Rect,
 }
 
 impl Default for BlockSelection {
     fn default() -> Self {
         Self {
-            data: Vec::new(),
-            image: ColorImage::default(),
+            data: Vec::default(),
+            indexed_colors: Vec::default(),
             rect: Rect::NOTHING,
         }
     }
@@ -62,24 +62,26 @@ impl Default for LevelEditor {
 }
 
 impl LevelEditor {
-    pub fn ui(&mut self, ui: &mut Ui, level: &mut LevelData) -> (Response, Rect, Option<Command>) {
+    pub fn ui(
+        &mut self,
+        ui: &mut Ui,
+        level: &mut LevelData,
+        palette: &Palette,
+    ) -> (Response, Rect, Option<Command>) {
         let (widget_response, widget_rect, command) = self.editor.ui(ui);
 
         match command {
-            Some(Command::Selection(selection, ref image_selection)) => self.set_selection(
+            Some(Command::Selection(selection, ref indexed_colors)) => self.set_selection(
                 ui.ctx(),
                 BlockSelection {
                     data: self.extract_selected_tiles(level, selection),
-                    image: self
-                        .editor
-                        .crop_selection(selection)
-                        .expect("Extracting selection without texture."),
+                    indexed_colors: indexed_colors.clone(),
                     rect: selection,
                 },
-                image_selection.clone(),
+                palette,
             ),
             Some(Command::Apply(position)) => {
-                self.apply_edit_selection(level, position);
+                self.apply_edit_selection(level, position, palette);
             }
             None => (),
         }
@@ -116,7 +118,12 @@ impl LevelEditor {
         selected_tiles
     }
 
-    pub fn apply_edit_selection(&mut self, level: &mut LevelData, position: Pos2) {
+    pub fn apply_edit_selection(
+        &mut self,
+        level: &mut LevelData,
+        position: Pos2,
+        palette: &Palette,
+    ) {
         let width_in_blocks = self.editor.size().x as usize / BLOCK_SIZE;
         let mut selected_tiles = self.edit_selection.data.iter();
 
@@ -137,7 +144,8 @@ impl LevelEditor {
         self.editor.edit_texture(
             position,
             self.edit_selection.rect.width(),
-            &self.edit_selection.image,
+            &self.edit_selection.indexed_colors,
+            palette,
         );
     }
 
@@ -175,10 +183,14 @@ impl LevelEditor {
         &mut self,
         ctx: &Context,
         block_selection: BlockSelection,
-        image_selection: ColorImage,
+        palette: &Palette,
     ) {
-        self.editor
-            .set_selection(ctx, image_selection, block_selection.rect);
+        self.editor.set_selection(
+            ctx,
+            &block_selection.indexed_colors,
+            block_selection.rect,
+            palette,
+        );
         self.edit_selection = block_selection;
     }
 }

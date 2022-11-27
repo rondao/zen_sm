@@ -1,6 +1,6 @@
 use eframe::{
     egui::{Context, Ui},
-    epaint::{ColorImage, Rect, Vec2},
+    epaint::{Rect, Vec2},
 };
 use zen::graphics::{IndexedColor, Palette, Rgb888};
 
@@ -8,7 +8,7 @@ use super::texture::Texture;
 
 pub struct IndexedTexture {
     pub texture: Texture,
-    indexed_colors: Vec<IndexedColor>,
+    pub indexed_colors: Vec<IndexedColor>,
 }
 
 impl IndexedTexture {
@@ -50,8 +50,22 @@ impl IndexedTexture {
         self.texture.apply_colors(colors);
     }
 
-    pub fn crop(&self, rect: Rect) -> Option<ColorImage> {
-        self.texture.crop(rect)
+    pub fn crop(&self, rect: Rect) -> Vec<IndexedColor> {
+        let mut crop = Vec::new();
+
+        let x_size = rect.width() as usize;
+        let y_size = rect.height() as usize;
+
+        let top_right_start = (rect.min.x + rect.min.y * self.texture.size()[0]) as usize;
+        let width = self.texture.size()[0] as usize;
+
+        for y in 0..y_size {
+            for x in 0..x_size {
+                crop.push(self.indexed_colors[top_right_start + x + (y * width)]);
+            }
+        }
+
+        crop
     }
 
     pub fn size(&self) -> Vec2 {
