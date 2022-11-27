@@ -1,12 +1,12 @@
 use eframe::{
     egui::{Context, Response, Ui},
-    epaint::{ColorImage, Pos2, Rect, Vec2},
+    epaint::{Pos2, Rect, Vec2},
 };
-use zen::graphics::{IndexedColor, Palette, Rgb888};
+use zen::graphics::{IndexedColor, Palette};
 
 use super::{
     drag_area::DragArea, indexed_texture::IndexedTexture,
-    painted_selectable_area::PaintedSelectableArea, selectable_area::Selectable, texture::Texture,
+    painted_selectable_area::PaintedSelectableArea, selectable_area::Selectable,
 };
 
 pub struct Editor {
@@ -14,7 +14,7 @@ pub struct Editor {
     selection: PaintedSelectableArea,
     texture_to_edit: IndexedTexture,
     selection_size: [f32; 2],
-    selected_texture: Texture,
+    selected_texture: IndexedTexture,
 }
 
 pub enum Command {
@@ -28,7 +28,7 @@ impl Editor {
             drag_area: DragArea::default(),
             selection: PaintedSelectableArea::new([1.0, 1.0], selection_size),
             texture_to_edit: IndexedTexture::new(format!("Texture_To_Edit_{}", name)),
-            selected_texture: Texture::new(format!("Selected_Texture_{}", name)),
+            selected_texture: IndexedTexture::new(format!("Selected_Texture_{}", name)),
             selection_size,
         }
     }
@@ -96,16 +96,14 @@ impl Editor {
         rect_selection: Rect,
         palette: &Palette,
     ) {
-        self.selected_texture.load_image(
+        self.selected_texture.load_colors(
             ctx,
-            indexed_color_to_color_image(
-                indexed_image,
-                palette,
-                [
-                    (rect_selection.size().x * self.selection_size[0]) as usize,
-                    (rect_selection.size().y * self.selection_size[1]) as usize,
-                ],
-            ),
+            indexed_image.clone(),
+            palette,
+            [
+                (rect_selection.size().x * self.selection_size[0]) as usize,
+                (rect_selection.size().y * self.selection_size[1]) as usize,
+            ],
         );
         self.selection.set_selection(rect_selection);
     }
@@ -132,29 +130,10 @@ impl Editor {
 
     pub fn apply_colors(&mut self, palette: &Palette) {
         self.texture_to_edit.apply_colors(palette);
+        self.selected_texture.apply_colors(palette);
     }
 
     pub fn clear_selection(&mut self) {
-        self.selected_texture.texture = None;
+        self.selected_texture.texture.texture = None;
     }
-}
-
-pub fn indexed_color_to_color_image(
-    indexed_colors: &Vec<IndexedColor>,
-    palette: &Palette,
-    size: [usize; 2],
-) -> ColorImage {
-    let colors = indexed_colors
-        .iter()
-        .fold(Vec::new(), |mut output, idx_color| {
-            let rgb888: Rgb888 =
-                palette.sub_palettes[idx_color.sub_palette].colors[idx_color.index].into();
-            output.push(rgb888.r);
-            output.push(rgb888.g);
-            output.push(rgb888.b);
-            output.push(255);
-            output
-        });
-
-    ColorImage::from_rgba_unmultiplied(size, &colors)
 }
