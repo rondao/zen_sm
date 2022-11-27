@@ -44,7 +44,7 @@ impl TileTableEditor {
     }
 
     fn extract_selected_tiles(&self, selection: Rect) -> BlockSelection {
-        let width_in_blocks = self.editor.texture_to_edit.size().x as usize / BLOCK_SIZE;
+        let width_in_blocks = self.editor.size().x as usize / BLOCK_SIZE;
 
         let mut selected_tiles: Vec<(Block, BtsBlock)> = Vec::new();
         for x in (selection.min.x as usize)..(selection.max.x as usize) {

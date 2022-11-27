@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{Context, Response, Ui},
+    egui::{Context, Response, TextureFilter, Ui},
     epaint::{ColorImage, Pos2, Rect, Vec2},
 };
 use zen::graphics::{IndexedColor, Palette};
@@ -12,7 +12,7 @@ use super::{
 pub struct Editor {
     drag_area: DragArea,
     selection: PaintedSelectableArea,
-    pub texture_to_edit: IndexedTexture,
+    texture_to_edit: IndexedTexture,
     selection_size: [f32; 2],
     selected_texture: Texture,
 }
@@ -56,6 +56,28 @@ impl Editor {
         (widget_response, widget_rect, command)
     }
 
+    pub fn edit_texture(&mut self, position: Pos2, selection_width: f32, image: &ColorImage) {
+        let Some(texture) = self.texture_to_edit.texture.texture.as_mut() else {return};
+        let Some(gfx_image) = self.texture_to_edit.texture.image.as_mut() else {return};
+
+        let click_pixel_position = [
+            (position.x * self.selection_size[0]) as usize,
+            (position.y * self.selection_size[1]) as usize,
+        ];
+
+        let screen_width_in_pixels = texture.size()[0];
+        let selection_width_in_pixels = (selection_width * self.selection_size[0]) as usize;
+
+        for (index, pixel) in image.pixels.iter().enumerate() {
+            let x = click_pixel_position[0] + (index % selection_width_in_pixels);
+            let y = click_pixel_position[1] * screen_width_in_pixels
+                + (index / selection_width_in_pixels) * screen_width_in_pixels;
+            gfx_image.pixels[x + y] = *pixel;
+        }
+
+        texture.set(gfx_image.clone(), TextureFilter::Nearest);
+    }
+
     pub fn crop_selection(&self, selection: Rect) -> Option<ColorImage> {
         let pixel_size_selection = Rect::from_min_max(
             (selection.min.to_vec2() * Vec2::from(self.selection_size)).to_pos2(),
@@ -72,6 +94,10 @@ impl Editor {
     ) {
         self.selected_texture.load_image(ctx, image_selection);
         self.selection.set_selection(rect_selection);
+    }
+
+    pub fn size(&self) -> Vec2 {
+        self.texture_to_edit.size()
     }
 
     pub fn set_size(&mut self, size: [usize; 2]) {

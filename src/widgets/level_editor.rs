@@ -103,7 +103,7 @@ impl LevelEditor {
     }
 
     fn extract_selected_tiles(&self, level: &mut LevelData, selection: Rect) -> Vec<(Block, u8)> {
-        let width_in_blocks = self.editor.texture_to_edit.size().x as usize / BLOCK_SIZE;
+        let width_in_blocks = self.editor.size().x as usize / BLOCK_SIZE;
 
         let mut selected_tiles: Vec<(Block, BtsBlock)> = Vec::new();
         for x in (selection.min.x as usize)..(selection.max.x as usize) {
@@ -117,7 +117,7 @@ impl LevelEditor {
     }
 
     pub fn apply_edit_selection(&mut self, level: &mut LevelData, position: Pos2) {
-        let width_in_blocks = self.editor.texture_to_edit.size().x as usize / BLOCK_SIZE;
+        let width_in_blocks = self.editor.size().x as usize / BLOCK_SIZE;
         let mut selected_tiles = self.edit_selection.data.iter();
 
         // Apply them to the level, from the extracted tiles.
@@ -134,27 +134,11 @@ impl LevelEditor {
 
         // Draw them onto texture.
         // TODO: We also need to draw onto the BTS layer.
-        if let Some(texture) = self.editor.texture_to_edit.texture.texture.as_mut() {
-            if let Some(gfx_image) = self.editor.texture_to_edit.texture.image.as_mut() {
-                let click_pixel_position = [
-                    position.x as usize * BLOCK_SIZE,
-                    position.y as usize * BLOCK_SIZE,
-                ];
-
-                let screen_width_in_pixels = texture.size()[0];
-                let selection_width_in_pixels =
-                    (self.edit_selection.rect.width() as usize) * BLOCK_SIZE;
-
-                for (index, pixel) in self.edit_selection.image.pixels.iter().enumerate() {
-                    let x = click_pixel_position[0] + (index % selection_width_in_pixels);
-                    let y = click_pixel_position[1] * screen_width_in_pixels
-                        + (index / selection_width_in_pixels) * screen_width_in_pixels;
-                    gfx_image.pixels[x + y] = *pixel;
-                }
-
-                texture.set(gfx_image.clone(), TextureFilter::Nearest);
-            }
-        }
+        self.editor.edit_texture(
+            position,
+            self.edit_selection.rect.width(),
+            &self.edit_selection.image,
+        );
     }
 
     pub fn apply_colors(&mut self, palette: &Palette) {
