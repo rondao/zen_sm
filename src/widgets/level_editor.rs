@@ -27,8 +27,8 @@ pub struct BtsTile {
 
 pub struct LevelEditor {
     pub editor: Editor,
-    pub bts_layer: Texture,
-    pub bts_icons: HashMap<BtsTile, ColorImage>,
+    bts_layer: Texture,
+    bts_icons: HashMap<BtsTile, ColorImage>,
     draw_bts: bool,
     edit_selection: BlockSelection,
 }
@@ -158,14 +158,18 @@ impl LevelEditor {
         self.editor.clear_selection();
     }
 
-    pub fn load_colors(
+    pub fn load_level(
         &mut self,
         ctx: &Context,
+        level_data: &LevelData,
         indexed_colors: Vec<zen::graphics::IndexedColor>,
         palette: Palette,
         texture_size: [usize; 2],
     ) {
         self.editor.set_size(texture_size);
+        self.editor
+            .load_colors(ctx, indexed_colors, &palette, texture_size);
+
         self.bts_layer.texture = Some(ctx.load_texture(
             "BTS Texture",
             ColorImage::from_rgba_unmultiplied(
@@ -175,8 +179,28 @@ impl LevelEditor {
             TextureFilter::Nearest,
         ));
 
-        self.editor
-            .load_colors(ctx, indexed_colors, &palette, texture_size);
+        let bts_icons =
+            level_data
+                .layer1
+                .iter()
+                .zip(level_data.bts.iter())
+                .map(|(block, bts_block)| {
+                    self.bts_icons.get(&BtsTile {
+                        block_type: block.block_type,
+                        bts_block: *bts_block,
+                    })
+                });
+
+        let x_blocks = texture_size[0] / BLOCK_SIZE;
+        for (i, bts_icon) in bts_icons.enumerate() {
+            if let Some(bts_icon) = bts_icon {
+                self.bts_layer.texture.as_mut().unwrap().set_partial(
+                    [(i % x_blocks) * BLOCK_SIZE, (i / x_blocks) * BLOCK_SIZE],
+                    bts_icon.clone(),
+                    TextureFilter::Nearest,
+                );
+            }
+        }
     }
 
     pub fn set_selection(

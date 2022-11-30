@@ -182,35 +182,7 @@ impl ZenSM {
         let indexed_colors = level_data.to_indexed_colors(room.size(), &tile_table, &graphics);
 
         self.level_editor
-            .load_colors(ctx, indexed_colors, *palette, size);
-
-        let bts_icons =
-            level_data
-                .layer1
-                .iter()
-                .zip(level_data.bts.iter())
-                .map(|(block, bts_block)| {
-                    self.level_editor.bts_icons.get(&widgets::BtsTile {
-                        block_type: block.block_type,
-                        bts_block: *bts_block,
-                    })
-                });
-
-        let [x_blocks, _] = room.size_in_blocks();
-        for (i, bts_icon) in bts_icons.enumerate() {
-            if let Some(bts_icon) = bts_icon {
-                self.level_editor
-                    .bts_layer
-                    .texture
-                    .as_mut()
-                    .unwrap()
-                    .set_partial(
-                        [(i % x_blocks) * BLOCK_SIZE, (i / x_blocks) * BLOCK_SIZE],
-                        bts_icon.clone(),
-                        TextureFilter::Nearest,
-                    );
-            }
-        }
+            .load_level(ctx, level_data, indexed_colors, *palette, size);
     }
 }
 
