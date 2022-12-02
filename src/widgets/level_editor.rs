@@ -140,13 +140,35 @@ impl LevelEditor {
         }
 
         // Draw them onto texture.
-        // TODO: We also need to draw onto the BTS layer.
         self.editor.edit_texture(
             position,
             self.edit_selection.rect.width(),
             &self.edit_selection.indexed_colors,
             palette,
         );
+
+        // Collect bts icons to draw.
+        let bts_icons = self.edit_selection.data.iter().map(|(block, bts_block)| {
+            self.bts_icons.get(&BtsTile {
+                block_type: block.block_type,
+                bts_block: *bts_block,
+            })
+        });
+
+        // Draw them onto bts texture.
+        let selection_width_in_blocks = self.edit_selection.rect.width() as usize;
+        for (i, bts_icon) in bts_icons.enumerate() {
+            if let Some(bts_icon) = bts_icon {
+                self.bts_layer.texture.as_mut().unwrap().set_partial(
+                    [
+                        (position.x as usize + (i % selection_width_in_blocks)) * BLOCK_SIZE,
+                        (position.y as usize + (i / selection_width_in_blocks)) * BLOCK_SIZE,
+                    ],
+                    bts_icon.clone(),
+                    TextureFilter::Nearest,
+                );
+            }
+        }
     }
 
     pub fn apply_colors(&mut self, palette: &Palette) {
