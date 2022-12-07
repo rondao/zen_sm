@@ -207,10 +207,18 @@ impl LevelEditor {
                 .iter()
                 .zip(level_data.bts.iter())
                 .map(|(block, bts_block)| {
-                    self.bts_icons.get(&BtsTile {
-                        block_type: block.block_type,
-                        bts_block: *bts_block,
-                    })
+                    self.bts_icons
+                        .get(&BtsTile {
+                            block_type: block.block_type,
+                            bts_block: *bts_block,
+                        })
+                        .or_else(|| {
+                            println!(
+                                "Block/BTS not found: ({:?} - {:#x})",
+                                block.block_type, bts_block
+                            );
+                            None
+                        })
                 });
 
         let x_blocks = texture_size[0] / BLOCK_SIZE;
@@ -258,6 +266,30 @@ fn load_bts_icons() -> HashMap<BtsTile, ColorImage> {
 
         let bts_icon = load_image_from_path(&path).unwrap();
 
+        if bts_tile.block_type == BlockType::Slope {
+            bts_icons.insert(
+                BtsTile {
+                    block_type: bts_tile.block_type,
+                    bts_block: bts_tile.bts_block | 0b01_0_00000,
+                },
+                image_mirror_horizontally(&bts_icon),
+            );
+            bts_icons.insert(
+                BtsTile {
+                    block_type: bts_tile.block_type,
+                    bts_block: bts_tile.bts_block | 0b10_0_00000,
+                },
+                image_mirror_vertically(&bts_icon),
+            );
+            bts_icons.insert(
+                BtsTile {
+                    block_type: bts_tile.block_type,
+                    bts_block: bts_tile.bts_block | 0b11_0_00000,
+                },
+                image_mirror_horizontally(&image_mirror_vertically(&bts_icon)),
+            );
+        }
+
         bts_icons.insert(bts_tile, bts_icon);
     }
 
@@ -270,4 +302,24 @@ fn load_image_from_path(path: &std::path::Path) -> Result<ColorImage, image::Ima
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();
     Ok(ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
+}
+
+fn image_mirror_horizontally(image: &ColorImage) -> ColorImage {
+    let mut output = image.clone();
+    for (row_number, row_pixels) in image.pixels.chunks(BLOCK_SIZE).enumerate() {
+        for (index, pixel) in row_pixels.iter().rev().enumerate() {
+            output.pixels[row_number * BLOCK_SIZE + index] = *pixel;
+        }
+    }
+    output
+}
+
+fn image_mirror_vertically(image: &ColorImage) -> ColorImage {
+    let mut output = image.clone();
+    for (row_number, row_pixels) in image.pixels.chunks(BLOCK_SIZE).enumerate() {
+        for (index, pixel) in row_pixels.iter().enumerate() {
+            output.pixels[(BLOCK_SIZE - row_number - 1) * BLOCK_SIZE + index] = *pixel;
+        }
+    }
+    output
 }

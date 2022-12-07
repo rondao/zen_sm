@@ -3,12 +3,11 @@ use std::sync::Mutex;
 use futures::Future;
 
 use crate::widgets::{self, TileTableCommand};
-use eframe::egui::{self, Context, TextureFilter, Ui};
+use eframe::egui::{self, Context, Ui};
 
 use zen::graphics::IndexedColor;
 use zen::super_metroid::{
     self,
-    tile_table::BLOCK_SIZE,
     tileset::{tileset_size, tileset_to_indexed_colors, Tileset},
     SuperMetroid,
 };
