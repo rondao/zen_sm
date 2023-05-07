@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{self, color, color_picker, containers, Context, Id, Response, Sense, Ui},
+    egui::{self, ecolor, color_picker, containers, Context, Id, Response, Sense, Ui},
     epaint::{Color32, Rect, Vec2},
 };
 use zen::graphics::{
@@ -50,20 +50,20 @@ impl PaletteEditor {
                 palette.sub_palettes[selected.y as usize].colors[selected.x as usize].into();
 
             self.editing_color =
-                color::Color32::from_rgb(palette_color.r, palette_color.g, palette_color.b);
+                ecolor::Color32::from_rgb(palette_color.r, palette_color.g, palette_color.b);
 
             // Position the color picker popup at the click position.
             egui::Area::new(self.color_edit_popup_id)
                 .current_pos(widget_response.interact_pointer_pos().unwrap())
                 .show(ui.ctx(), |_ui| {});
 
-            if !ui.memory().is_popup_open(self.color_edit_popup_id) {
-                ui.memory().toggle_popup(self.color_edit_popup_id);
+            if !ui.memory(|m| m.is_popup_open(self.color_edit_popup_id)) {
+                ui.memory_mut(|m| m.toggle_popup(self.color_edit_popup_id))
             }
         };
 
         // Color picker is open.
-        if ui.memory().is_popup_open(self.color_edit_popup_id) {
+        if ui.memory(|m| m.is_popup_open(self.color_edit_popup_id)) {
             self.ui_color_picker(ui, &mut widget_response);
             if widget_response.changed() {
                 if let Some(selected_index) = self.selectable_area.position() {
@@ -100,10 +100,10 @@ impl PaletteEditor {
             });
 
         if !response.secondary_clicked()
-            && (ui.input().key_pressed(egui::Key::Escape)
+            && (ui.input(|i| i.key_pressed(egui::Key::Escape))
                 || area_response.response.clicked_elsewhere())
         {
-            ui.memory().close_popup();
+            ui.memory_mut(|m| m.close_popup());
             self.selectable_area.unselect();
         }
     }

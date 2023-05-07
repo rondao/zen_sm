@@ -11,7 +11,7 @@ fn main() {
         "Zen SM",
         eframe::NativeOptions::default(),
         Box::new(|_cc| Box::new(app)),
-    );
+    ).unwrap();
 }
 
 fn _start_puffin_server() {

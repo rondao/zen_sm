@@ -13,7 +13,7 @@ pub struct DragArea {
 
 impl DragArea {
     pub fn create(&mut self, ui: &mut Ui, widget_size: Vec2) -> (Rect, Response) {
-        for event in &ui.input().events {
+        ui.input(|i| for event in &i.events {
             match event {
                 Event::PointerButton {
                     pos: _,
@@ -23,7 +23,7 @@ impl DragArea {
                 } => self.dragging = *pressed,
                 _ => {}
             }
-        }
+        });
 
         self.zoom_area.create(
             ui,

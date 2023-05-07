@@ -19,12 +19,12 @@ impl ZoomArea {
             ui.allocate_exact_size(widget_size * self.zoom, senses);
 
         if widget_response.hovered() {
-            for event in &ui.input().events {
+            ui.input(|i| for event in &i.events {
                 match event {
                     eframe::egui::Event::Zoom(value) => self.zoom *= value,
                     _ => {}
                 }
-            }
+            });
         }
 
         (widget_rect, widget_response)

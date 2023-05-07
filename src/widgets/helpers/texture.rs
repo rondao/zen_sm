@@ -1,5 +1,5 @@
 use eframe::{
-    egui::{Context, Image, TextureFilter, Ui},
+    egui::{Context, Image, Ui, TextureOptions},
     epaint::{ColorImage, Rect, TextureHandle, Vec2},
 };
 use zen::graphics::Rgb888;
@@ -32,12 +32,12 @@ impl Texture {
             ColorImage::from_rgba_unmultiplied(texture_size, &rgb888s_to_rgba(colors.into_iter()));
 
         self.image = Some(image.clone());
-        self.texture = Some(ctx.load_texture(&self.name, image, TextureFilter::Nearest));
+        self.texture = Some(ctx.load_texture(&self.name, image, TextureOptions::NEAREST));
     }
 
     pub fn load_image(&mut self, ctx: &Context, image: ColorImage) {
         self.image = Some(image.clone());
-        self.texture = Some(ctx.load_texture(&self.name, image, TextureFilter::Nearest));
+        self.texture = Some(ctx.load_texture(&self.name, image, TextureOptions::NEAREST));
     }
 
     pub fn apply_colors(&mut self, colors: impl Iterator<Item = Rgb888>) {
@@ -52,7 +52,7 @@ impl Texture {
                 pixel[2] = color.b;
             });
         if let Some(texture) = self.texture.as_mut() {
-            texture.set(image.clone(), TextureFilter::Nearest);
+            texture.set(image.clone(), TextureOptions::NEAREST);
         }
     }
 

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use eframe::{
-    egui::{Context, Response, TextureFilter, Ui},
+    egui::{Context, Response, Ui, TextureOptions},
     epaint::{ColorImage, Pos2, Rect},
 };
 use zen::{
@@ -86,15 +86,8 @@ impl LevelEditor {
             None => (),
         }
 
-        for event in &ui.input().events {
-            match event {
-                eframe::egui::Event::Key {
-                    key: eframe::egui::Key::H,
-                    pressed: true,
-                    modifiers: _,
-                } => self.draw_bts = !self.draw_bts,
-                _ => {}
-            }
+        if ui.input(|i| i.key_pressed(eframe::egui::Key::H)) {
+            self.draw_bts = !self.draw_bts
         }
 
         if self.draw_bts {
@@ -165,7 +158,7 @@ impl LevelEditor {
                         (position.y as usize + (i / selection_width_in_blocks)) * BLOCK_SIZE,
                     ],
                     bts_icon.clone(),
-                    TextureFilter::Nearest,
+                    TextureOptions::NEAREST,
                 );
             }
         }
@@ -198,7 +191,7 @@ impl LevelEditor {
                 texture_size,
                 &vec![0; texture_size[0] * texture_size[1] * 4],
             ),
-            TextureFilter::Nearest,
+            TextureOptions::NEAREST,
         ));
 
         let bts_icons =
@@ -227,7 +220,7 @@ impl LevelEditor {
                 self.bts_layer.texture.as_mut().unwrap().set_partial(
                     [(i % x_blocks) * BLOCK_SIZE, (i / x_blocks) * BLOCK_SIZE],
                     bts_icon.clone(),
-                    TextureFilter::Nearest,
+                    TextureOptions::NEAREST,
                 );
             }
         }
