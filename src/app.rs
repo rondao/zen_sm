@@ -80,10 +80,10 @@ impl eframe::App for ZenSM {
             .resizable(true)
             .default_width(150.0)
             .show(ctx, |ui| {
-                egui::TopBottomPanel::top("Tileset").show_inside(ui, |ui| {
+                egui::TopBottomPanel::top("RoomSelectorPanel").show_inside(ui, |ui| {
                     self.draw_room_selector(ui);
                 });
-                egui::TopBottomPanel::top("Tileset").show_inside(ui, |ui| {
+                egui::TopBottomPanel::top("TilesetPanel").show_inside(ui, |ui| {
                     self.tileset_selector(ui);
                 });
                 self.draw_graphics(ui);
