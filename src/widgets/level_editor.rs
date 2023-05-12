@@ -149,13 +149,13 @@ impl LevelEditor {
         });
 
         // Draw them onto bts texture.
-        let selection_width_in_blocks = self.edit_selection.rect.width() as usize;
+        let selection_height_in_blocks = self.edit_selection.rect.height() as usize;
         for (i, bts_icon) in bts_icons.enumerate() {
             if let Some(bts_icon) = bts_icon {
                 self.bts_layer.texture.as_mut().unwrap().set_partial(
                     [
-                        (position.x as usize + (i % selection_width_in_blocks)) * BLOCK_SIZE,
-                        (position.y as usize + (i / selection_width_in_blocks)) * BLOCK_SIZE,
+                        (position.x as usize + (i / selection_height_in_blocks)) * BLOCK_SIZE,
+                        (position.y as usize + (i % selection_height_in_blocks)) * BLOCK_SIZE,
                     ],
                     bts_icon.clone(),
                     TextureOptions::NEAREST,
