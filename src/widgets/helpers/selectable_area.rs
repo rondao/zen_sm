@@ -52,15 +52,19 @@ impl SelectableArea {
                     transform_area_to_screen.transform_rect(single_selection),
                 ))
             } else if widget_response.dragged() {
-                self.selection.as_mut().and_then(|selection| {
-                    selection.max = pointer_selection + Vec2::DOWN + Vec2::RIGHT;
+                self.selection.and_then(|selection| {
                     Some(Selectable::Dragging(
-                        transform_area_to_screen.transform_rect(*selection),
+                        transform_area_to_screen.transform_rect(Self::make_selection_area(
+                            selection.min,
+                            pointer_selection,
+                        )),
                     ))
                 })
             } else if widget_response.drag_released() {
-                self.selection
-                    .and_then(|selection| Some(Selectable::Selected(selection)))
+                self.selection.as_mut().and_then(|selection| {
+                    *selection = Self::make_selection_area(selection.min, pointer_selection);
+                    Some(Selectable::Selected(*selection))
+                })
             } else if widget_response.clicked() {
                 Some(Selectable::Clicked(pointer_selection))
             } else {
@@ -94,6 +98,27 @@ impl SelectableArea {
 
     pub fn unselect(&mut self) {
         self.selection = None;
+    }
+
+    fn make_selection_area(first_click: Pos2, second_click: Pos2) -> Rect {
+        let top_left = Pos2 {
+            x: first_click.x.min(second_click.x),
+            y: first_click.y.min(second_click.y),
+        };
+        let bottom_right = Pos2 {
+            x: if first_click.x > second_click.x {
+                first_click.x + 1.0
+            } else {
+                second_click.x + 1.0
+            },
+            y: if first_click.y > second_click.y {
+                first_click.y + 1.0
+            } else {
+                second_click.y + 1.0
+            },
+        };
+
+        Rect::from_min_max(top_left, bottom_right)
     }
 
     fn sizes(area: [f32; 2], size: [f32; 2]) -> Rect {
