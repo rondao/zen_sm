@@ -46,12 +46,12 @@ impl SelectableArea {
             if widget_response.secondary_clicked() {
                 self.selection = Some(single_selection);
                 Some(Selectable::Selected(single_selection))
-            } else if widget_response.drag_started() {
+            } else if widget_response.drag_started_by(eframe::egui::PointerButton::Secondary) {
                 self.selection = Some(single_selection);
                 Some(Selectable::Dragging(
                     transform_area_to_screen.transform_rect(single_selection),
                 ))
-            } else if widget_response.dragged() {
+            } else if widget_response.dragged_by(eframe::egui::PointerButton::Secondary) {
                 self.selection.and_then(|selection| {
                     Some(Selectable::Dragging(
                         transform_area_to_screen.transform_rect(Self::make_selection_area(
@@ -60,7 +60,7 @@ impl SelectableArea {
                         )),
                     ))
                 })
-            } else if widget_response.drag_released() {
+            } else if widget_response.drag_released_by(eframe::egui::PointerButton::Secondary) {
                 self.selection.as_mut().and_then(|selection| {
                     *selection = Self::make_selection_area(selection.min, pointer_selection);
                     Some(Selectable::Selected(*selection))
