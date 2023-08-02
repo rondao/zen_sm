@@ -1,3 +1,4 @@
+/dist
 /target
 /web/*.js
 /web/*.wasm
