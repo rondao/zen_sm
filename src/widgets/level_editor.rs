@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use eframe::{
-    egui::{Context, Response, Ui, TextureOptions},
+    egui::{Context, Response, TextureOptions, Ui},
     epaint::{ColorImage, Pos2, Rect},
 };
 use zen::{

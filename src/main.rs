@@ -4,6 +4,8 @@
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
 fn main() {
+    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+
     _start_puffin_server();
 
     let app = zen_sm::ZenSM::default();
@@ -11,9 +13,11 @@ fn main() {
         "Zen SM",
         eframe::NativeOptions::default(),
         Box::new(|_cc| Box::new(app)),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn _start_puffin_server() {
     puffin::set_scopes_on(true); // tell puffin to collect data
 
@@ -30,4 +34,28 @@ fn _start_puffin_server() {
             eprintln!("Failed to start puffin server: {}", err);
         }
     };
+}
+
+// When compiling to web using trunk:
+#[cfg(target_arch = "wasm32")]
+fn main() {
+    // Unwrap panics at 'console.log'.
+    console_error_panic_hook::set_once();
+
+    // Redirect `log` message to `console.log` and friends:
+    eframe::WebLogger::init(log::LevelFilter::Debug).ok();
+
+    let web_options = eframe::WebOptions::default();
+
+    let app = zen_sm::ZenSM::default();
+    wasm_bindgen_futures::spawn_local(async {
+        eframe::WebRunner::new()
+            .start(
+                "the_canvas_id", // hardcode it
+                web_options,
+                Box::new(|_cc| Box::new(app)),
+            )
+            .await
+            .expect("failed to start eframe");
+    });
 }
