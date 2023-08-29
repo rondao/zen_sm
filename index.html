@@ -23,6 +23,8 @@
     <link data-trunk rel="copy-file" href="assets/icon_ios_touch_192.png" />
     <link data-trunk rel="copy-file" href="assets/maskable_icon_x512.png" />
 
+    <!-- Copy all of BTS images -->
+    <link data-trunk rel="copy-dir" href="images/" />
 
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon_ios_touch_192.png">
@@ -127,6 +129,10 @@
     <!--Register Service Worker. this will cache the wasm / js scripts for offline use (for PWA functionality). -->
     <!-- Force refresh (Ctrl + F5) to load the latest files instead of cached files  -->
     <script>
+        async function fetch_image(url) {
+            return await fetch(url).then(r => r.arrayBuffer()).then(arr => new Uint8Array(arr));
+        }
+
         // We disable caching during development so that we always view the latest version.
         if ('serviceWorker' in navigator && window.location.hash !== "#dev") {
             window.addEventListener('load', function () {

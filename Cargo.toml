@@ -31,13 +31,11 @@ lazy_static = "1.4.0"
 js-sys = "0.3.56"
 wasm-bindgen = "0.2.79"
 log = "0.4"
+wasm-bindgen-futures = "0.4"
 
 [features]
 default = []
-persistence = [
-    "eframe/persistence",
-    "serde",
-] # Enable if you want to persist app state on shutdown
+persistence = ["eframe/persistence", "serde"] # Enable if you want to persist app state on shutdown
 
 # native:
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]

@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 
 use eframe::{
     egui::{Context, Response, TextureOptions, Ui},
@@ -7,10 +10,12 @@ use eframe::{
 use zen::{
     graphics::{gfx::GFX_TILE_WIDTH, IndexedColor, Palette},
     super_metroid::{
-        level_data::{Block, BlockType, BtsBlock, LevelData},
+        level_data::{Block, BtsBlock, LevelData},
         tile_table::BLOCK_SIZE,
     },
 };
+
+use crate::app::BtsTile;
 
 use super::helpers::{
     editor::{Command, Editor},
@@ -19,16 +24,10 @@ use super::helpers::{
 
 const SELECTION_SIZE: [f32; 2] = [GFX_TILE_WIDTH as f32, GFX_TILE_WIDTH as f32];
 
-#[derive(Default, Debug, Hash, Eq, PartialEq)]
-pub struct BtsTile {
-    pub block_type: BlockType,
-    pub bts_block: u8,
-}
-
 pub struct LevelEditor {
     pub editor: Editor,
     bts_layer: Texture,
-    bts_icons: HashMap<BtsTile, ColorImage>,
+    bts_icons: Arc<Mutex<HashMap<BtsTile, ColorImage>>>,
     draw_bts: bool,
     edit_selection: BlockSelection,
 }
@@ -49,12 +48,12 @@ impl Default for BlockSelection {
     }
 }
 
-impl Default for LevelEditor {
-    fn default() -> Self {
+impl LevelEditor {
+    pub fn new(bts_icons: Arc<Mutex<HashMap<BtsTile, ColorImage>>>) -> Self {
         Self {
             editor: Editor::new("Level", SELECTION_SIZE),
             bts_layer: Texture::new("BtsLayer_LevelEditor".to_string()),
-            bts_icons: load_bts_icons(),
+            bts_icons,
             draw_bts: true,
             edit_selection: BlockSelection::default(),
         }
@@ -142,10 +141,14 @@ impl LevelEditor {
 
         // Collect bts icons to draw.
         let bts_icons = self.edit_selection.data.iter().map(|(block, bts_block)| {
-            self.bts_icons.get(&BtsTile {
-                block_type: block.block_type,
-                bts_block: *bts_block,
-            })
+            self.bts_icons
+                .lock()
+                .unwrap()
+                .get(&BtsTile {
+                    block_type: block.block_type,
+                    bts_block: *bts_block,
+                })
+                .cloned()
         });
 
         // Draw them onto bts texture.
@@ -201,6 +204,8 @@ impl LevelEditor {
                 .zip(level_data.bts.iter())
                 .map(|(block, bts_block)| {
                     self.bts_icons
+                        .lock()
+                        .unwrap()
                         .get(&BtsTile {
                             block_type: block.block_type,
                             bts_block: *bts_block,
@@ -212,6 +217,7 @@ impl LevelEditor {
                             );
                             None
                         })
+                        .cloned()
                 });
 
         let x_blocks = texture_size[0] / BLOCK_SIZE;
@@ -240,79 +246,4 @@ impl LevelEditor {
         );
         self.edit_selection = block_selection;
     }
-}
-
-fn load_bts_icons() -> HashMap<BtsTile, ColorImage> {
-    let mut bts_icons = HashMap::new();
-
-    let paths = std::fs::read_dir("images").unwrap();
-    for path in paths {
-        let path = path.unwrap().path();
-        let mut splitted_file_name = path.file_stem().unwrap().to_str().unwrap().split("_");
-
-        let bts_tile = BtsTile {
-            block_type: u8::from_str_radix(splitted_file_name.next().unwrap(), 16)
-                .unwrap()
-                .into(),
-            bts_block: u8::from_str_radix(splitted_file_name.next().unwrap(), 16).unwrap(),
-        };
-
-        let bts_icon = load_image_from_path(&path).unwrap();
-
-        if bts_tile.block_type == BlockType::Slope {
-            bts_icons.insert(
-                BtsTile {
-                    block_type: bts_tile.block_type,
-                    bts_block: bts_tile.bts_block | 0b01_0_00000,
-                },
-                image_mirror_horizontally(&bts_icon),
-            );
-            bts_icons.insert(
-                BtsTile {
-                    block_type: bts_tile.block_type,
-                    bts_block: bts_tile.bts_block | 0b10_0_00000,
-                },
-                image_mirror_vertically(&bts_icon),
-            );
-            bts_icons.insert(
-                BtsTile {
-                    block_type: bts_tile.block_type,
-                    bts_block: bts_tile.bts_block | 0b11_0_00000,
-                },
-                image_mirror_horizontally(&image_mirror_vertically(&bts_icon)),
-            );
-        }
-
-        bts_icons.insert(bts_tile, bts_icon);
-    }
-
-    bts_icons
-}
-
-fn load_image_from_path(path: &std::path::Path) -> Result<ColorImage, image::ImageError> {
-    let image = image::io::Reader::open(path)?.decode()?;
-    let size = [image.width() as _, image.height() as _];
-    let image_buffer = image.to_rgba8();
-    let pixels = image_buffer.as_flat_samples();
-    Ok(ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
-}
-
-fn image_mirror_horizontally(image: &ColorImage) -> ColorImage {
-    let mut output = image.clone();
-    for (row_number, row_pixels) in image.pixels.chunks(BLOCK_SIZE).enumerate() {
-        for (index, pixel) in row_pixels.iter().rev().enumerate() {
-            output.pixels[row_number * BLOCK_SIZE + index] = *pixel;
-        }
-    }
-    output
-}
-
-fn image_mirror_vertically(image: &ColorImage) -> ColorImage {
-    let mut output = image.clone();
-    for (row_number, row_pixels) in image.pixels.chunks(BLOCK_SIZE).enumerate() {
-        for (index, pixel) in row_pixels.iter().enumerate() {
-            output.pixels[(BLOCK_SIZE - row_number - 1) * BLOCK_SIZE + index] = *pixel;
-        }
-    }
-    output
 }

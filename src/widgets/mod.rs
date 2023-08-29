@@ -5,7 +5,6 @@ mod palette;
 mod tiletable;
 
 pub use graphics::GraphicsEditor;
-pub use level_editor::BtsTile;
 pub use level_editor::LevelEditor;
 pub use palette::PaletteEditor;
 pub use tiletable::TileTableCommand;
