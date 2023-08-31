@@ -15,7 +15,7 @@ use zen::{
     },
 };
 
-use crate::app::BtsTile;
+use crate::assets::BtsTile;
 
 use super::helpers::{
     editor::{Command, Editor},

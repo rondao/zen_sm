@@ -2,6 +2,7 @@
 #![warn(clippy::all, rust_2018_idioms)]
 
 mod app;
+pub mod assets;
 pub mod colors;
 pub mod widgets;
 pub use app::ZenSM;
