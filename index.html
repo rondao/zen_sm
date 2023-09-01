@@ -25,6 +25,7 @@
 
     <!-- Copy all of BTS images -->
     <link data-trunk rel="copy-dir" href="images/" />
+    <link data-trunk rel="copy-file" href="data/images.txt" />
 
     <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="icon_ios_touch_192.png">
@@ -131,6 +132,11 @@
     <script>
         async function fetch_image(url) {
             return await fetch(url).then(r => r.arrayBuffer()).then(arr => new Uint8Array(arr));
+        }
+
+        async function get_assets_names() {
+            const request = new Request("images.txt");
+            return await fetch(request).then((response) => response.text());
         }
 
         // We disable caching during development so that we always view the latest version.
