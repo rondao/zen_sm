@@ -44,41 +44,10 @@ pub fn load_bts_icons(editor_assets: Arc<Mutex<HashMap<BtsTile, ColorImage>>>) {
                 let pixels = image_buffer.as_flat_samples();
 
                 let file_name = asset.replace(".png", "");
-                let mut splitted_file_name = file_name.split("_");
-
-                let bts_tile = BtsTile {
-                    block_type: u8::from_str_radix(splitted_file_name.next().unwrap(), 16)
-                        .unwrap()
-                        .into(),
-                    bts_block: u8::from_str_radix(splitted_file_name.next().unwrap(), 16).unwrap(),
-                };
 
                 let bts_icon = ColorImage::from_rgba_unmultiplied(size, pixels.as_slice());
 
-                if bts_tile.block_type == BlockType::Slope {
-                    editor_assets.lock().unwrap().insert(
-                        BtsTile {
-                            block_type: bts_tile.block_type,
-                            bts_block: bts_tile.bts_block | 0b01_0_00000,
-                        },
-                        image_mirror_horizontally(&bts_icon),
-                    );
-                    editor_assets.lock().unwrap().insert(
-                        BtsTile {
-                            block_type: bts_tile.block_type,
-                            bts_block: bts_tile.bts_block | 0b10_0_00000,
-                        },
-                        image_mirror_vertically(&bts_icon),
-                    );
-                    editor_assets.lock().unwrap().insert(
-                        BtsTile {
-                            block_type: bts_tile.block_type,
-                            bts_block: bts_tile.bts_block | 0b11_0_00000,
-                        },
-                        image_mirror_horizontally(&image_mirror_vertically(&bts_icon)),
-                    );
-                }
-                editor_assets.lock().unwrap().insert(bts_tile, bts_icon);
+                generate_bts_tiles(&editor_assets, bts_icon, &file_name);
             }
         }
     });
@@ -89,42 +58,11 @@ pub fn load_bts_icons(editor_assets: Arc<Mutex<HashMap<BtsTile, ColorImage>>>) {
     let paths = std::fs::read_dir("images").unwrap();
     for path in paths {
         let path = path.unwrap().path();
-        let mut splitted_file_name = path.file_stem().unwrap().to_str().unwrap().split("_");
-
-        let bts_tile = BtsTile {
-            block_type: u8::from_str_radix(splitted_file_name.next().unwrap(), 16)
-                .unwrap()
-                .into(),
-            bts_block: u8::from_str_radix(splitted_file_name.next().unwrap(), 16).unwrap(),
-        };
+        let file_name = path.file_stem().unwrap().to_str().unwrap();
 
         let bts_icon = load_image_from_path(&path).unwrap();
 
-        if bts_tile.block_type == BlockType::Slope {
-            editor_assets.lock().unwrap().insert(
-                BtsTile {
-                    block_type: bts_tile.block_type,
-                    bts_block: bts_tile.bts_block | 0b01_0_00000,
-                },
-                image_mirror_horizontally(&bts_icon),
-            );
-            editor_assets.lock().unwrap().insert(
-                BtsTile {
-                    block_type: bts_tile.block_type,
-                    bts_block: bts_tile.bts_block | 0b10_0_00000,
-                },
-                image_mirror_vertically(&bts_icon),
-            );
-            editor_assets.lock().unwrap().insert(
-                BtsTile {
-                    block_type: bts_tile.block_type,
-                    bts_block: bts_tile.bts_block | 0b11_0_00000,
-                },
-                image_mirror_horizontally(&image_mirror_vertically(&bts_icon)),
-            );
-        }
-
-        editor_assets.lock().unwrap().insert(bts_tile, bts_icon);
+        generate_bts_tiles(&editor_assets, bts_icon, file_name);
     }
 }
 
@@ -135,6 +73,47 @@ fn load_image_from_path(path: &std::path::Path) -> Result<ColorImage, image::Ima
     let image_buffer = image.to_rgba8();
     let pixels = image_buffer.as_flat_samples();
     Ok(ColorImage::from_rgba_unmultiplied(size, pixels.as_slice()))
+}
+
+fn generate_bts_tiles(
+    editor_assets: &Arc<Mutex<HashMap<BtsTile, ColorImage>>>,
+    bts_icon: ColorImage,
+    file_name: &str,
+) {
+    let mut splitted_file_name = file_name.split("_");
+
+    let bts_tile = BtsTile {
+        block_type: u8::from_str_radix(splitted_file_name.next().unwrap(), 16)
+            .unwrap()
+            .into(),
+        bts_block: u8::from_str_radix(splitted_file_name.next().unwrap(), 16).unwrap(),
+    };
+
+    if bts_tile.block_type == BlockType::Slope {
+        editor_assets.lock().unwrap().insert(
+            BtsTile {
+                block_type: bts_tile.block_type,
+                bts_block: bts_tile.bts_block | 0b01_0_00000,
+            },
+            image_mirror_horizontally(&bts_icon),
+        );
+        editor_assets.lock().unwrap().insert(
+            BtsTile {
+                block_type: bts_tile.block_type,
+                bts_block: bts_tile.bts_block | 0b10_0_00000,
+            },
+            image_mirror_vertically(&bts_icon),
+        );
+        editor_assets.lock().unwrap().insert(
+            BtsTile {
+                block_type: bts_tile.block_type,
+                bts_block: bts_tile.bts_block | 0b11_0_00000,
+            },
+            image_mirror_horizontally(&image_mirror_vertically(&bts_icon)),
+        );
+    }
+
+    editor_assets.lock().unwrap().insert(bts_tile, bts_icon);
 }
 
 fn image_mirror_horizontally(image: &ColorImage) -> ColorImage {
