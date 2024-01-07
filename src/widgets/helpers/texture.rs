@@ -23,7 +23,7 @@ impl Texture {
 
     pub fn ui(&self, ui: &mut Ui, widget_rect: Rect) {
         if let Some(texture) = &self.texture {
-            ui.put(widget_rect, Image::new(texture, widget_rect.size()));
+            ui.put(widget_rect, Image::new(texture));
         }
     }
 
